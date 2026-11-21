@@ -476,6 +476,78 @@ class TestBackend(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.json()["extracted_urls"], urls)
 
+    def test_idna_forms_produce_the_same_brand_signals(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        for first, second, label, weight in [
+            ("https://hdfcb\u0430nk.example/", "https://xn--hdfcbnk-6fg.example/",
+             "Similar brand spelling", 20),
+            ("https://HDFCB\u0410NK.Example:8443/receipt?q=original#section",
+             "https://XN--HDFCBNK-6FG.Example:8443/receipt?q=original#section",
+             "Similar brand spelling", 20),
+            ("https://hdfcbnk.example.org/", "https://HDFCBNK.EXAMPLE.ORG/",
+             "Similar brand spelling", 20),
+            ("https://sbi-例子.example/", "https://xn--sbi--3u6fl73d.example/",
+             "Brand and domain differ", 35),
+        ]:
+            for url in (first, second):
+                with self.subTest(url=url):
+                    response = scan_client.post("/api/analyze", json={"content": url})
+                    self.assertEqual(response.status_code, 200)
+                    data = response.json()
+                    self.assertEqual(data["extracted_urls"], [url])
+                    self.assertEqual(data["highlighted_phrases"], [url])
+                    self.assertEqual(data["signals"], [{"label": label, "weight": weight}])
+                    self.assertEqual((data["verdict"], data["score"]), ("SUSPICIOUS", weight))
+
+    def test_idna_preserves_benign_domains_and_ip_literals(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        for url in [
+            "https://例子.测试:8443/收据?q=原文#结果",
+            "https://xn--fsqu00a.xn--0zwm56d:8443/收据?q=原文#结果",
+            "https://cafe\u0301.example/",
+            "https://xn--caf-dma.example/",
+            "https://example.org/",
+            "https://OnLineSBI.SBI:8443/home",
+            "http://192.0.2.10:8080/receipt",
+            "http://[2001:db8::1]:8080/receipt",
+        ]:
+            with self.subTest(url=url):
+                response = scan_client.post("/api/analyze", json={"content": url})
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["extracted_urls"], [url])
+                self.assertEqual(data["signals"], [])
+                self.assertEqual((data["verdict"], data["score"]), ("SAFE", 0))
+
+    def test_invalid_idna_is_unreadable_and_preserves_source(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        for url in [
+            "https://xn--0.example/receipt",
+            "https://\uff53\uff42\uff49.co.in/receipt",
+            "https://sbi\u200d.example/receipt",
+        ]:
+            with self.subTest(url=url):
+                response = scan_client.post("/api/analyze", json={"content": url})
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["extracted_urls"], [url])
+                self.assertEqual(data["highlighted_phrases"], [url])
+                self.assertEqual(data["signals"], [{"label": "Unreadable address", "weight": 25}])
+                self.assertEqual((data["verdict"], data["score"]), ("SUSPICIOUS", 25))
+
+    def test_idna_equivalent_hosts_keep_distinct_url_evidence(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        unicode_url = "https://hdfcb\u0430nk.example/path?q=original#section"
+        punycode_url = "https://xn--hdfcbnk-6fg.example/path?q=original#section"
+        content = f"{unicode_url}\n{punycode_url}\n{unicode_url}"
+        response = scan_client.post("/api/analyze", json={"content": content})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["extracted_urls"], [unicode_url, punycode_url])
+        self.assertEqual(data["highlighted_phrases"], [unicode_url, punycode_url])
+        self.assertEqual(data["signals"], [{"label": "Similar brand spelling", "weight": 20}])
+        self.assertEqual((data["verdict"], data["score"]), ("SUSPICIOUS", 20))
+
     def test_complete_urls_preserve_order_deduplication_and_credential_evidence(self):
         scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
         first = "example.org:8443/receipt"

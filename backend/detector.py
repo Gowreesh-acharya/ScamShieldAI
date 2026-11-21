@@ -1,9 +1,11 @@
 import asyncio
 import re
 from difflib import SequenceMatcher
+from unicodedata import normalize
 from urllib.parse import urlsplit, urljoin
 
 import httpx
+import idna
 
 # A small demonstration reference set, not an exhaustive ownership directory.
 BRANDS = {
@@ -78,6 +80,16 @@ def host(value):
         return parsed.hostname.lower().rstrip(".")
     except ValueError:
         return ""
+
+
+def hostname_for_comparison(name):
+    """Return the ASCII reference name and Unicode spelling for a parsed hostname."""
+    if ":" in name or (name.isascii() and not any(label.startswith("xn--") for label in name.split("."))):
+        return name, name
+
+    # Use NFC and strict IDNA2008. UTS #46 compatibility mapping is disabled.
+    encoded = idna.encode(normalize("NFC", name), strict=True, uts46=False)
+    return encoded.decode("ascii"), idna.decode(encoded, strict=True, uts46=False)
 
 
 def trim_url(match):
@@ -239,10 +251,16 @@ async def analyze(content, client=None):
                 "its authority. Verify the destination independently."
             )
 
-        known_domain = any(name == d or name.endswith("." + d)
+        try:
+            ascii_name, unicode_name = hostname_for_comparison(name)
+        except idna.IDNAError:
+            add("Unreadable address", 25, url, "The website address could not be interpreted.")
+            continue
+
+        known_domain = any(ascii_name == d or ascii_name.endswith("." + d)
                            for domains in BRANDS.values() for d in domains)
         if not known_domain:
-            for token in name.split(".")[:-1]:
+            for token in unicode_name.split(".")[:-1]:
                 for reference in ("hdfcbank", "indiapost"):
                     similarity = SequenceMatcher(None, token, reference).ratio()
                     if 0.82 <= similarity < 1:
@@ -262,7 +280,7 @@ async def analyze(content, client=None):
             domains = BRANDS[brand]
 
             is_listed_domain = any(
-                name == domain or name.endswith("." + domain)
+                ascii_name == domain or ascii_name.endswith("." + domain)
                 for domain in domains
             )
 
@@ -272,7 +290,7 @@ async def analyze(content, client=None):
             has_brand_label = any(
                 re.search(
                     r"(?:^|[.-])" + re.escape(alias) + r"(?:$|[.-])",
-                    name,
+                    unicode_name,
                     re.I
                 )
                 for alias in aliases
@@ -289,7 +307,7 @@ async def analyze(content, client=None):
 
         for brand, domains in BRANDS.items():
             if re.search(r"\b" + re.escape(brand) + r"\b", message, re.I):
-                if not any(name == d or name.endswith("." + d) for d in domains):
+                if not any(ascii_name == d or ascii_name.endswith("." + d) for d in domains):
                     add("Brand and domain differ", 35, url, f"{name} is outside the listed reference domains for {brand}.")
     score = min(100, sum(s["weight"] for s in signals))
     verdict = "HIGH_RISK" if score >= 70 else "SUSPICIOUS" if score else "SAFE"
