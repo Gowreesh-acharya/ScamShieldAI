@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Layers, ShieldAlert, Trash2, AlertCircle, Link2, Sparkles, MessageSquare, Globe, CheckCircle2 } from 'lucide-react';
 import { scanCombinedApi } from '../services/api';
-import { saveScan } from '../utils/storage';
+import { saveCompletedScan } from '../utils/storage';
 import RiskResultCard from '../components/RiskResultCard';
 import ScanProgress from '../components/ScanProgress';
 
@@ -39,6 +39,7 @@ export default function CombinedScanner({ onScanComplete }) {
     if (matches && matches.length > 0) {
       setUrl(matches[0]);
       setError(null);
+      setResult(null);
     } else {
       setError('No URL link (http:// or https://) was found inside the message text.');
     }
@@ -46,6 +47,7 @@ export default function CombinedScanner({ onScanComplete }) {
 
   const handleAnalyze = async (e) => {
     if (e) e.preventDefault();
+    setResult(null);
 
     if (!message.trim() && !url.trim()) {
       setError('Please provide at least a message or a URL for combined analysis.');
@@ -54,12 +56,10 @@ export default function CombinedScanner({ onScanComplete }) {
 
     setError(null);
     setLoading(true);
-    setResult(null);
 
     try {
-      const scanResult = await scanCombinedApi(message, url);
+      const scanResult = await saveCompletedScan(scanCombinedApi(message, url));
       setResult(scanResult);
-      saveScan(scanResult);
       if (onScanComplete) onScanComplete();
     } catch (err) {
       setError(err.message || 'An error occurred during combined threat analysis.');
@@ -106,6 +106,7 @@ export default function CombinedScanner({ onScanComplete }) {
                   key={idx}
                   type="button"
                   className="preset-chip"
+                  disabled={loading}
                   onClick={() => handleLoadSample(sample)}
                 >
                   <span className={`preset-dot ${sample.type}`} />
@@ -130,8 +131,10 @@ export default function CombinedScanner({ onScanComplete }) {
                 rows={4}
                 placeholder="Paste the SMS or message body here..."
                 value={message}
+                disabled={loading}
                 onChange={(e) => {
                   setMessage(e.target.value);
+                  setResult(null);
                   if (error) setError(null);
                 }}
               />
@@ -143,6 +146,7 @@ export default function CombinedScanner({ onScanComplete }) {
                 <button
                   type="button"
                   className="btn-secondary"
+                  disabled={loading}
                   onClick={handleExtractUrl}
                   style={{ height: '28px', fontSize: '11px', padding: '0 8px', color: 'var(--accent-sky)' }}
                 >
@@ -167,8 +171,10 @@ export default function CombinedScanner({ onScanComplete }) {
                   className="cyber-input"
                   placeholder="https://example.com/payment or landing portal..."
                   value={url}
+                  disabled={loading}
                   onChange={(e) => {
                     setUrl(e.target.value);
+                    setResult(null);
                     if (error) setError(null);
                   }}
                 />
@@ -177,7 +183,7 @@ export default function CombinedScanner({ onScanComplete }) {
 
             {/* Error Banner */}
             {error && (
-              <div className="alert-banner warning">
+              <div className="alert-banner warning" role="alert">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertCircle size={15} />
                   <span>{error}</span>

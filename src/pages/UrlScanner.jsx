@@ -11,7 +11,7 @@ import {
   Info
 } from 'lucide-react';
 import { scanUrlApi } from '../services/api';
-import { saveScan } from '../utils/storage';
+import { saveCompletedScan } from '../utils/storage';
 import RiskResultCard from '../components/RiskResultCard';
 import ScanProgress from '../components/ScanProgress';
 
@@ -62,6 +62,7 @@ export default function UrlScanner({ onScanComplete }) {
 
   const handleScan = async (e) => {
     if (e) e.preventDefault();
+    setResult(null);
 
     const validationErr = validateUrl(url);
     if (validationErr) {
@@ -71,12 +72,10 @@ export default function UrlScanner({ onScanComplete }) {
 
     setError(null);
     setLoading(true);
-    setResult(null);
 
     try {
-      const scanResult = await scanUrlApi(url);
+      const scanResult = await saveCompletedScan(scanUrlApi(url));
       setResult(scanResult);
-      saveScan(scanResult);
       if (onScanComplete) onScanComplete();
     } catch (err) {
       setError(err.message || 'An error occurred during URL evaluation.');
@@ -97,8 +96,8 @@ export default function UrlScanner({ onScanComplete }) {
     setResult(null);
   };
 
-  const intel = result?.advancedIntelligence;
-  const domain = result?.domainDetails;
+  const intel = result?.isLive === false ? result.advancedIntelligence : null;
+  const domain = result?.isLive === false ? result.domainDetails : null;
 
   return (
     <div className="page-content">
@@ -111,7 +110,7 @@ export default function UrlScanner({ onScanComplete }) {
               Advanced URL Intelligence Engine
             </h3>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              DNS / SSL / Typosquatting / Rep
+              URL structure and brand signals
             </span>
           </div>
 
@@ -124,6 +123,7 @@ export default function UrlScanner({ onScanComplete }) {
                   key={idx}
                   type="button"
                   className="preset-chip"
+                  disabled={loading}
                   onClick={() => handleLoadSample(sample.url)}
                 >
                   <span className={`preset-dot ${sample.type}`} />
@@ -149,8 +149,10 @@ export default function UrlScanner({ onScanComplete }) {
                   className="cyber-input"
                   placeholder="https://example.com or http://192.168.1.1/..."
                   value={url}
+                  disabled={loading}
                   onChange={(e) => {
                     setUrl(e.target.value);
+                    setResult(null);
                     if (error) setError(null);
                   }}
                 />
@@ -159,7 +161,7 @@ export default function UrlScanner({ onScanComplete }) {
 
             {/* Error Banner */}
             {error && (
-              <div className="alert-banner warning">
+              <div className="alert-banner warning" role="alert">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertCircle size={15} />
                   <span>{error}</span>
@@ -235,7 +237,7 @@ export default function UrlScanner({ onScanComplete }) {
                 <div style={{ backgroundColor: 'var(--bg-surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Layers size={14} color="var(--accent-sky)" />
-                    <span>Intelligence Category Breakdown</span>
+                    <span>Demo URL Analysis</span>
                   </div>
 
                   {/* 1. Observed URL Characteristics */}
@@ -288,13 +290,13 @@ export default function UrlScanner({ onScanComplete }) {
               <Globe size={32} color="var(--border-medium)" />
               <h4>Awaiting URL Input</h4>
               <p style={{ maxWidth: '320px', fontSize: '13px' }}>
-                Enter a target domain or choose a test scenario to inspect SSL certificates, brand impersonation, and DNS anomalies.
+                Enter a target domain or choose a test scenario to check for suspicious address patterns.
               </p>
 
               <div className="empty-checklist">
                 <div className="empty-checklist-item">
                   <CheckCircle2 size={13} color="var(--accent-sky)" />
-                  <span>Flags unencrypted plaintext HTTP transmissions</span>
+                  <span>Flags misleading information before the hostname</span>
                 </div>
                 <div className="empty-checklist-item">
                   <CheckCircle2 size={13} color="var(--accent-sky)" />
@@ -302,11 +304,11 @@ export default function UrlScanner({ onScanComplete }) {
                 </div>
                 <div className="empty-checklist-item">
                   <CheckCircle2 size={13} color="var(--accent-sky)" />
-                  <span>Identifies raw IP hosting and high-risk TLDs</span>
+                  <span>Flags lookalike brand spellings</span>
                 </div>
                 <div className="empty-checklist-item">
                   <CheckCircle2 size={13} color="var(--accent-sky)" />
-                  <span>Inspects open redirect parameters in query strings</span>
+                  <span>Identifies links that may hide their destination</span>
                 </div>
               </div>
             </div>

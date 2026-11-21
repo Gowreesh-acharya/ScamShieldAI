@@ -3,22 +3,22 @@ import { Cpu } from 'lucide-react';
 export default function ScanProgress({ type = 'message' }) {
   const steps = {
     message: [
-      'Extracting syntax & linguistic tokenization...',
-      'Evaluating social engineering & urgency markers...',
-      'Cross-referencing institutional brand impersonation...',
-      'Computing contextual risk score...'
+      'Checking for requests for sensitive information...',
+      'Looking for pressure and threats...',
+      'Checking addresses mentioned in the message...',
+      'Computing the risk score...'
     ],
     url: [
-      'Parsing protocol, hostname & path structure...',
-      'Inspecting top-level domain reputation & SSL certificate...',
-      'Detecting typosquatting patterns & DNS anomalies...',
-      'Calculating destination vulnerability index...'
+      'Parsing the address...',
+      'Checking for misleading hostname information...',
+      'Comparing brand names with reference domains...',
+      'Computing the risk score...'
     ],
     combined: [
-      'Tokenizing message communication pretext...',
-      'Evaluating destination URL host & certificates...',
-      'Cross-referencing pretext against domain ownership...',
-      'Synthesizing compound attack classification...'
+      'Checking the message for scam indicators...',
+      'Inspecting the link structure...',
+      'Comparing brand names with reference domains...',
+      'Computing a combined risk score...'
     ]
   };
 
@@ -35,7 +35,7 @@ export default function ScanProgress({ type = 'message' }) {
           Threat Inspection Active
         </h4>
         <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-          Executing Deep Heuristic & Neural Analysis
+          Checking for scam indicators
         </p>
       </div>
 

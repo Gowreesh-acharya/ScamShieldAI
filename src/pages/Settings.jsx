@@ -11,11 +11,10 @@ import {
   RefreshCw,
   Server
 } from 'lucide-react';
-import { checkBackendStatus } from '../services/api';
+import { checkBackendStatus, getApiBaseUrl } from '../services/api';
 import { clearScanHistory } from '../utils/storage';
 
 export default function Settings({ theme, onThemeChange, onRefreshHistory }) {
-  const [backendUrl, setBackendUrl] = useState('http://localhost:8000');
   const [testingBackend, setTestingBackend] = useState(false);
   const [backendTestStatus, setBackendTestStatus] = useState(null);
   const [notifications, setNotifications] = useState(true);
@@ -127,13 +126,14 @@ export default function Settings({ theme, onThemeChange, onRefreshHistory }) {
           </div>
 
           <div className="form-group" style={{ marginBottom: '14px' }}>
-            <label className="form-label">FastAPI Base Service URL</label>
+            <label className="form-label" htmlFor="backend-url">FastAPI Base Service URL</label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
+                id="backend-url"
                 type="text"
                 className="cyber-input"
-                value={backendUrl}
-                onChange={(e) => setBackendUrl(e.target.value)}
+                value={getApiBaseUrl()}
+                readOnly
                 style={{ flex: 1 }}
               />
               <button
@@ -144,7 +144,7 @@ export default function Settings({ theme, onThemeChange, onRefreshHistory }) {
                 style={{ height: '36px', padding: '0 16px' }}
               >
                 <RefreshCw size={13} className={testingBackend ? 'spinning' : ''} />
-                <span>{testingBackend ? 'Probing...' : 'Test Health'}</span>
+                <span>{testingBackend ? 'Probing...' : 'Test connection'}</span>
               </button>
             </div>
           </div>
@@ -166,14 +166,14 @@ export default function Settings({ theme, onThemeChange, onRefreshHistory }) {
                 <>
                   <CheckCircle2 size={16} color="var(--threat-safe)" />
                   <span style={{ color: 'var(--threat-safe)' }}>
-                    FastAPI Endpoint Online. Model: <code>{backendTestStatus.model || 'live-gemini-scamshield'}</code>
+                    FastAPI scanner is online.
                   </span>
                 </>
               ) : (
                 <>
                   <AlertTriangle size={16} color="var(--threat-warning)" />
                   <span style={{ color: 'var(--threat-warning)' }}>
-                    Backend Offline. ScamShield is operating in automated Demo Heuristic Fallback mode.
+                    {backendTestStatus.reason || backendTestStatus.error}
                   </span>
                 </>
               )}

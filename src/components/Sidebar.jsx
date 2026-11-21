@@ -203,7 +203,8 @@ export default function Sidebar({
               className={`status-dot ${backendStatus?.online ? 'online' : 'demo'} pulsing`}
             />
             <span style={{ color: backendStatus?.online ? 'var(--threat-safe)' : 'var(--threat-warning)' }}>
-              {backendStatus?.online ? 'FastAPI Live' : 'Demo Evaluation'}
+              {backendStatus?.checking ? 'Checking FastAPI' :
+                backendStatus?.online ? 'FastAPI Live' : backendStatus?.demo ? 'Demo Mode' : 'FastAPI Unavailable'}
             </span>
           </div>
           <Activity size={13} color="var(--sidebar-muted)" />

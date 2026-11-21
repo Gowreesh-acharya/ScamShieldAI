@@ -14,20 +14,30 @@ import {
   MessageSquare,
   Bot
 } from 'lucide-react';
+import { getScanClassification } from '../utils/storage';
 
 export default function RiskResultCard({ result, onFeedback, onInvestigate }) {
   const [copied, setCopied] = useState(false);
 
   if (!result) return null;
 
+  const classification = getScanClassification(result);
+  if (!classification) {
+    return <div className="alert-banner warning" role="alert">This scan result is unavailable. Please run a new scan.</div>;
+  }
+
   const {
-    riskScore = 0,
-    classification = 'SAFE',
+    riskScore,
     indicators = {},
     explanation = '',
     recommendation = '',
     isLive = false,
-    fallbackNotice
+    verdict,
+    notice,
+    signals = [],
+    extracted_urls: extractedUrls = [],
+    unrolled_urls: unrolledUrls = [],
+    safety_tip: safetyTip
   } = result;
 
   const {
@@ -56,35 +66,46 @@ export default function RiskResultCard({ result, onFeedback, onInvestigate }) {
 
   const handleCopyReport = () => {
     const report = `[ScamShield AI Audit Report]
-Risk Score: ${riskScore}/100 (${classification})
-Inference Source: ${isLive ? 'FastAPI Live Inference Model' : 'ScamShield Local Heuristic Engine'}
+Risk Score: ${riskScore}/100 (${verdict || classification})
+Source: ${isLive ? 'FastAPI scan' : 'Demo Heuristic Engine'}
 Executive Summary: ${explanation}
 Recommended Protocol: ${recommendation}
 Flagged Phrases: ${suspiciousPhrases.join(', ') || 'None'}
 Urgency Cues: ${urgencyIndicators.join(', ') || 'None'}
 Entity Impersonation: ${impersonation.join(', ') || 'None'}
 URL Attributes: ${urlCharacteristics.join(', ') || 'None'}
-Timestamp: ${new Date().toLocaleString()}`;
+${[
+  notice,
+  signals.length > 0 && `Signals: ${signals.map(({ label, weight }) => `${label} (+${weight})`).join(', ')}`,
+  extractedUrls.length > 0 && `Extracted URLs: ${extractedUrls.join(', ')}`,
+  unrolledUrls.length > 0 && `Redirect destinations: ${unrolledUrls.join(', ')}`,
+  safetyTip && `Safety tip: ${safetyTip}`
+].filter(Boolean).map(line => `${line}\n`).join('')}Timestamp: ${new Date().toLocaleString()}`;
 
     navigator.clipboard.writeText(report);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const backendEvidence = [
+    { label: 'Scoring signals', entries: signals.map(({ label, weight }) => `${label} (+${weight})`) },
+    { label: 'Extracted URLs', entries: extractedUrls },
+    { label: 'First redirect destinations', entries: unrolledUrls }
+  ].filter(({ entries }) => entries.length > 0);
   const hasAnyIndicators =
     suspiciousPhrases.length > 0 ||
     urgencyIndicators.length > 0 ||
     impersonation.length > 0 ||
-    urlCharacteristics.length > 0;
+    urlCharacteristics.length > 0 ||
+    backendEvidence.length > 0;
 
   return (
     <div className={`risk-result-card classification-${classification}`}>
-      {/* Backend Fallback Banner if applicable */}
-      {fallbackNotice && (
+      {notice && (
         <div className="alert-banner warning">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Info size={15} />
-            <span>{fallbackNotice}</span>
+            <span>{notice}</span>
           </div>
         </div>
       )}
@@ -126,7 +147,7 @@ Timestamp: ${new Date().toLocaleString()}`;
               {isLive ? (
                 <>
                   <Server size={11} color="var(--accent-sky)" />
-                  <span>FastAPI Live Model</span>
+                  <span>FastAPI Live Scan</span>
                 </>
               ) : (
                 <>
@@ -267,17 +288,33 @@ Timestamp: ${new Date().toLocaleString()}`;
               </div>
             </div>
           )}
+          {backendEvidence.map(({ label, entries }) => (
+            <div className="indicator-block" key={label}>
+              <span className="indicator-title">
+                <Info size={13} color="var(--accent-sky)" />
+                {label}
+              </span>
+              <div className="tags-cluster">
+                {entries.map(entry => (
+                  <span key={entry} className="indicator-chip url-trait" style={{ overflowWrap: 'anywhere' }}>
+                    {entry}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Recommended Safety Action */}
-      {recommendation && (
+      {(recommendation || safetyTip) && (
         <div className="safety-action-box">
           <div className="safety-action-title">
             <CheckCircle2 size={14} />
             Recommended Safety Action Protocol
           </div>
-          <p className="safety-action-text">{recommendation}</p>
+          {recommendation && <p className="safety-action-text">{recommendation}</p>}
+          {safetyTip && <p className="safety-action-text">{safetyTip}</p>}
         </div>
       )}
     </div>

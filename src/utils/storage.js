@@ -171,6 +171,20 @@ export function saveScan(scanData) {
   }
 }
 
+export async function saveCompletedScan(pendingScan) {
+  return saveScan(await pendingScan);
+}
+
+export function getScanClassification(scan) {
+  const { classification, riskScore, source, verdict, fallbackNotice } = scan ?? {};
+  // The previous adapter could save a live default of SAFE/0 without a backend verdict.
+  const legacyDefault = source === 'FASTAPI_LIVE_MODEL' && !verdict && classification === 'SAFE' && riskScore === 0;
+  if (legacyDefault || fallbackNotice || !Number.isInteger(riskScore) || riskScore < 0 || riskScore > 100) {
+    return null;
+  }
+  return ['SAFE', 'SUSPICIOUS', 'DANGEROUS'].includes(classification) ? classification : null;
+}
+
 export function clearScanHistory() {
   try {
     localStorage.removeItem(STORAGE_KEY);
@@ -183,16 +197,17 @@ export function clearScanHistory() {
 
 export function getScanStats() {
   const history = getScanHistory();
-  const total = history.length;
   let threats = 0;
   let safe = 0;
   let suspicious = 0;
 
   history.forEach(scan => {
-    if (scan.classification === 'DANGEROUS') threats++;
-    else if (scan.classification === 'SAFE') safe++;
-    else if (scan.classification === 'SUSPICIOUS') suspicious++;
+    const classification = getScanClassification(scan);
+    if (classification === 'DANGEROUS') threats++;
+    else if (classification === 'SAFE') safe++;
+    else if (classification === 'SUSPICIOUS') suspicious++;
   });
+  const total = threats + safe + suspicious;
 
   return {
     totalScans: total,

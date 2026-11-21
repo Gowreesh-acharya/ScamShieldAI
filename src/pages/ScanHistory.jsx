@@ -11,7 +11,7 @@ import {
   FileImage,
   MessageSquare as FeedbackIcon
 } from 'lucide-react';
-import { clearScanHistory } from '../utils/storage';
+import { clearScanHistory, getScanClassification } from '../utils/storage';
 
 export default function ScanHistory({ history = [], onRefreshHistory, onInspectScan, onFeedback }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,7 +37,7 @@ export default function ScanHistory({ history = [], onRefreshHistory, onInspectS
 
   const filteredHistory = history.filter((item) => {
     if (typeFilter !== 'ALL' && item.type !== typeFilter) return false;
-    if (classFilter !== 'ALL' && item.classification !== classFilter) return false;
+    if (classFilter !== 'ALL' && getScanClassification(item) !== classFilter) return false;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -194,7 +194,7 @@ export default function ScanHistory({ history = [], onRefreshHistory, onInspectS
               </tr>
             ) : (
               filteredHistory.map((scan) => {
-                const badgeClass = scan.classification || 'SAFE';
+                const classification = getScanClassification(scan);
                 return (
                   <tr key={scan.id}>
                     <td>
@@ -212,9 +212,10 @@ export default function ScanHistory({ history = [], onRefreshHistory, onInspectS
                       </div>
                     </td>
                     <td>
-                      <span className={`classification-badge ${badgeClass}`} style={{ fontSize: '10px', padding: '2px 7px' }}>
-                        {badgeClass}
+                      <span className={`classification-badge ${classification || ''}`} style={{ fontSize: '10px', padding: '2px 7px' }}>
+                        {classification || 'Rescan required'}
                       </span>
+                      {classification && scan.source?.startsWith('DEMO_') && <small> Demo</small>}
                     </td>
                     <td>
                       <span
@@ -222,18 +223,18 @@ export default function ScanHistory({ history = [], onRefreshHistory, onInspectS
                         style={{
                           fontWeight: 700,
                           color:
-                            scan.riskScore >= 70
+                            classification === 'DANGEROUS'
                               ? 'var(--threat-danger)'
-                              : scan.riskScore >= 30
+                              : classification === 'SUSPICIOUS'
                               ? 'var(--threat-warning)'
-                              : 'var(--threat-safe)'
+                              : classification === 'SAFE' ? 'var(--threat-safe)' : 'var(--text-muted)'
                         }}
                       >
-                        {scan.riskScore}/100
+                        {classification ? `${scan.riskScore}/100` : '—'}
                       </span>
                     </td>
                     <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {scan.summary || 'Security evaluation complete'}
+                      {classification ? scan.summary || 'Security evaluation complete' : 'A new scan is needed to verify this result.'}
                     </td>
                     <td style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

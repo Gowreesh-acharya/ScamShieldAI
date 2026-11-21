@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import StatCard from '../components/StatCard';
+import { getScanClassification } from '../utils/storage';
 
 export default function Dashboard({ stats, history, onNavigate, onInspectScan }) {
   const [safetyBannerDismissed, setSafetyBannerDismissed] = useState(false);
@@ -294,7 +295,7 @@ export default function Dashboard({ stats, history, onNavigate, onInspectScan })
               </tr>
             ) : (
               recentScans.map((scan) => {
-                const badgeClass = scan.classification || 'SAFE';
+                const classification = getScanClassification(scan);
                 return (
                   <tr key={scan.id}>
                     <td>
@@ -317,20 +318,21 @@ export default function Dashboard({ stats, history, onNavigate, onInspectScan })
                         style={{
                           fontWeight: 700,
                           color:
-                            scan.riskScore >= 70
+                            classification === 'DANGEROUS'
                               ? 'var(--threat-danger)'
-                              : scan.riskScore >= 30
+                              : classification === 'SUSPICIOUS'
                               ? 'var(--threat-warning)'
-                              : 'var(--threat-safe)'
+                              : classification === 'SAFE' ? 'var(--threat-safe)' : 'var(--text-muted)'
                         }}
                       >
-                        {scan.riskScore}/100
+                        {classification ? `${scan.riskScore}/100` : '—'}
                       </span>
                     </td>
                     <td>
-                      <span className={`classification-badge ${badgeClass}`} style={{ fontSize: '10px', padding: '2px 7px' }}>
-                        {badgeClass}
+                      <span className={`classification-badge ${classification || ''}`} style={{ fontSize: '10px', padding: '2px 7px' }}>
+                        {classification || 'Rescan required'}
                       </span>
+                      {classification && scan.source?.startsWith('DEMO_') && <small> Demo</small>}
                     </td>
                     <td style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

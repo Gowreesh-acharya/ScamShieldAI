@@ -7,8 +7,8 @@ import {
   CheckCircle2,
   Languages
 } from 'lucide-react';
-import { scanMessageApi } from '../services/api';
-import { saveScan } from '../utils/storage';
+import { getApiMode, scanMessageApi } from '../services/api';
+import { saveCompletedScan } from '../utils/storage';
 import RiskResultCard from '../components/RiskResultCard';
 import ScanProgress from '../components/ScanProgress';
 
@@ -52,9 +52,11 @@ export default function MessageScanner({ onScanComplete }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const isDemoMode = getApiMode() === 'DEMO';
 
   const handleAnalyze = async (e) => {
     if (e) e.preventDefault();
+    setResult(null);
 
     if (!text.trim()) {
       setError('Please enter or paste a message to analyze.');
@@ -68,15 +70,13 @@ export default function MessageScanner({ onScanComplete }) {
 
     setError(null);
     setLoading(true);
-    setResult(null);
 
     try {
-      const scanResult = await scanMessageApi(text, {
+      const scanResult = await saveCompletedScan(scanMessageApi(text, {
         targetLanguage: selectedLanguage,
         explanationLang
-      });
+      }));
       setResult(scanResult);
-      saveScan(scanResult);
       if (onScanComplete) onScanComplete();
     } catch (err) {
       setError(err.message || 'An unexpected error occurred during message inspection.');
@@ -116,7 +116,7 @@ export default function MessageScanner({ onScanComplete }) {
               Multilingual Message Scanner
             </h3>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              EN / HI / KN / Hinglish
+              {isDemoMode ? 'Demo language options' : 'Text analysis'}
             </span>
           </div>
 
@@ -131,6 +131,7 @@ export default function MessageScanner({ onScanComplete }) {
                 className="cyber-input"
                 value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
+                disabled={!isDemoMode || loading}
                 style={{ padding: '0 10px', height: '36px', fontSize: '12px' }}
               >
                 <option value="auto">Auto-Detect Script</option>
@@ -150,6 +151,7 @@ export default function MessageScanner({ onScanComplete }) {
                 className="cyber-input"
                 value={explanationLang}
                 onChange={(e) => setExplanationLang(e.target.value)}
+                disabled={!isDemoMode || loading}
                 style={{ padding: '0 10px', height: '36px', fontSize: '12px' }}
               >
                 <option value="en">English</option>
@@ -158,6 +160,7 @@ export default function MessageScanner({ onScanComplete }) {
               </select>
             </div>
           </div>
+          {!isDemoMode && <p className="form-hint">Language preferences apply in Demo mode.</p>}
 
           {/* Sample Presets */}
           <div className="presets-container">
@@ -168,6 +171,7 @@ export default function MessageScanner({ onScanComplete }) {
                   key={idx}
                   type="button"
                   className="preset-chip"
+                  disabled={loading}
                   onClick={() => handleLoadSample(sample)}
                 >
                   <span className={`preset-dot ${sample.type}`} />
@@ -191,8 +195,10 @@ export default function MessageScanner({ onScanComplete }) {
                 rows={6}
                 placeholder="Paste the suspicious SMS, WhatsApp message, or email body in English, Hindi, Kannada, or Hinglish..."
                 value={text}
+                disabled={loading}
                 onChange={(e) => {
                   setText(e.target.value);
+                  setResult(null);
                   if (error) setError(null);
                 }}
               />
@@ -200,7 +206,7 @@ export default function MessageScanner({ onScanComplete }) {
 
             {/* Error Message Banner */}
             {error && (
-              <div className="alert-banner warning">
+              <div className="alert-banner warning" role="alert">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertCircle size={15} />
                   <span>{error}</span>
@@ -280,7 +286,7 @@ export default function MessageScanner({ onScanComplete }) {
                 </div>
                 <div className="empty-checklist-item">
                   <CheckCircle2 size={13} color="var(--accent-sky)" />
-                  <span>Provides localized explanations in English, Hindi, or Kannada</span>
+                  <span>{isDemoMode ? 'Offers demo explanations in English, Hindi, or Kannada' : 'Explains the signals behind the score'}</span>
                 </div>
               </div>
             </div>

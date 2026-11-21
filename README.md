@@ -18,8 +18,8 @@ ScamShield AI is a cybersecurity SaaS frontend engineered to protect citizens an
    - Evidence-based risk score (0–100) and actionable safety advice.
 
 3. **URL & Phishing Scanner**:
-   - Evaluates domain reputation, suspicious TLDs (`.xyz`, `.top`, `.online`), raw IP addressing, brand typosquatting, and missing SSL/TLS encryption.
-   - Real-time feedback and threat breakdown.
+   - Checks URL structure, brand and domain mismatches, and known link shorteners.
+   - Displays extracted URLs and any first redirect destinations returned by the backend.
 
 4. **Combined Attack Analysis**:
    - Simultaneously cross-references suspicious communications with their associated destination URLs.
@@ -31,9 +31,9 @@ ScamShield AI is a cybersecurity SaaS frontend engineered to protect citizens an
    - Filter by scan type (Message, URL, Combined) and threat classification (Safe, Suspicious, Dangerous).
    - Full text search and one-click JSON export for audit reporting.
 
-6. **FastAPI Backend Integration Ready with Demo Evaluation Fallback**:
-   - Easily connects to any FastAPI backend via `VITE_API_BASE_URL`.
-   - Includes a deterministic, transparent Heuristic Evaluation Engine for offline demonstration mode.
+6. **FastAPI integration and explicit Demo mode**:
+   - Message, URL, and Combined scans connect to the ScamShield FastAPI backend through `VITE_API_BASE_URL`.
+   - Auto and Live report request failures. Select Demo to run the browser heuristics.
 
 ---
 
@@ -49,80 +49,48 @@ ScamShield AI is a cybersecurity SaaS frontend engineered to protect citizens an
 
 ## 🔌 FastAPI Backend Integration Contract
 
-The API client is located in [`src/services/api.js`](src/services/api.js). To connect your FastAPI backend:
+The three scanners send one `content` string to `POST /api/analyze`. Combined Scan joins the provided message and URL with a newline. The connection check runs the same endpoint with a fixed greeting and skips scan history.
 
-1. Create a `.env` file (see `.env.example`):
-   ```env
-   VITE_API_BASE_URL=http://localhost:8000
-   ```
-
-2. Implement the following endpoints in your FastAPI application:
-
-### `GET /api/health`
 ```json
-{
-  "status": "ok",
-  "version": "1.0.0"
-}
+{ "content": "Reply with your OTP" }
 ```
 
-### `POST /api/scan/message`
-**Request Body**:
-```json
-{
-  "text": "Dear Customer, your SBI account will be blocked today..."
-}
-```
-**Response Body**:
-```json
-{
-  "risk_score": 92,
-  "classification": "DANGEROUS",
-  "indicators": {
-    "suspicious_phrases": ["account will be blocked today"],
-    "urgency_indicators": ["threat of account closure today"],
-    "impersonation": ["State Bank of India (SBI)"],
-    "url_characteristics": []
-  },
-  "explanation": "High scam probability detected due to coercive account suspension threat.",
-  "recommendation": "Do NOT click links or share credentials. Report to cybercrime.gov.in."
-}
-```
+The example returns `HIGH_RISK` with score `75`. Live scan history retains the backend verdict and uses `DANGEROUS` as the display label for `HIGH_RISK`. The response fields are `verdict`, `score`, `link_only`, `notice`, `highlighted_phrases`, `extracted_urls`, `unrolled_urls`, `signals`, `reason`, `action`, and `safety_tip`.
 
-### `POST /api/scan/url`
-**Request Body**:
-```json
-{
-  "url": "http://sbi-kyc-verify.update-portal.xyz/login"
-}
-```
+Failed requests leave scan history untouched. Older records affected by the previous default score or automatic fallback are marked **Rescan required**.
 
-### `POST /api/scan/combined`
-**Request Body**:
-```json
-{
-  "text": "Your BESCOM power will be disconnected...",
-  "url": "http://bescom-bill-desk.online/pay"
-}
-```
+The default API base URL is `http://localhost:8000`. Set `VITE_API_BASE_URL` in a local `.env` file if the backend runs at another address and restart Vite.
 
 ---
 
 ## 💻 Running the Application
 
-### 1. Install Dependencies
-```bash
-npm install
+### Backend in a PowerShell terminal
+
+From the workspace root, set up a local Python environment and launch the API.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn main:app --app-dir backend --port 8000
 ```
 
-### 2. Start Development Server
-```bash
-npm run dev
+### Frontend in a second PowerShell terminal
+
+```powershell
+npm.cmd ci
+npm.cmd run dev -- --port 5173 --strictPort
 ```
 
-### 3. Build for Production
-```bash
-npm run build
+Open `http://localhost:5173`. The backend development configuration allows Vite on port 5173.
+
+### Regression checks
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s backend -v
+npm.cmd test
+npm.cmd run lint
+npm.cmd run build
 ```
 
 ---

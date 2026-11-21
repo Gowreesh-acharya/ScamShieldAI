@@ -84,6 +84,8 @@ export default function Header({
 }) {
   const meta = PAGE_METADATA[activePage] || PAGE_METADATA.dashboard;
   const currentMode = getApiMode();
+  const backendLabel = currentMode === 'DEMO' ? 'Demo' :
+    backendStatus?.checking ? 'Checking' : backendStatus?.online ? 'Live' : 'Unavailable';
   const [showNotifications, setShowNotifications] = useState(false);
 
   const handleModeSwitch = (mode) => {
@@ -186,18 +188,18 @@ export default function Header({
           type="button"
           className="btn-secondary"
           onClick={onRefreshBackend}
-          title={backendStatus?.online ? 'Connected to FastAPI backend' : 'Backend offline (Local Heuristic Engine active)'}
+          title={backendStatus?.online ? 'Connected to the FastAPI scanner' : backendStatus?.reason}
           style={{ height: '32px', fontSize: '11px', padding: '0 10px' }}
         >
           {backendStatus?.online ? (
             <>
               <ShieldCheck size={13} color="var(--threat-safe)" />
-              <span style={{ color: 'var(--threat-safe)' }}>Live</span>
+              <span style={{ color: 'var(--threat-safe)' }}>{backendLabel}</span>
             </>
           ) : (
             <>
               <AlertCircle size={13} color="var(--threat-warning)" />
-              <span style={{ color: 'var(--threat-warning)' }}>Heuristic</span>
+              <span style={{ color: 'var(--threat-warning)' }}>{backendLabel}</span>
             </>
           )}
           <RefreshCw size={11} style={{ marginLeft: '2px', opacity: 0.7 }} />

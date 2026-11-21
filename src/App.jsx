@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -27,6 +27,7 @@ export default function App() {
   const [activePage, setActivePage] = useState('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [backendStatus, setBackendStatus] = useState({ online: false, checking: true });
+  const backendProbe = useRef(0);
   const [history, setHistory] = useState(() => getScanHistory());
   const [stats, setStats] = useState(() => getScanStats());
   const [inspectedScan, setInspectedScan] = useState(null);
@@ -70,23 +71,25 @@ export default function App() {
   }, []);
 
   // Check backend health status
-  const refreshBackend = useCallback(async () => {
-    setBackendStatus(prev => ({ ...prev, checking: true }));
+  const runBackendProbe = useCallback(async () => {
+    const probe = ++backendProbe.current;
     const status = await checkBackendStatus();
-    setBackendStatus({ ...status, checking: false });
+    if (probe === backendProbe.current) {
+      setBackendStatus({ ...status, checking: false });
+    }
   }, []);
 
+  const refreshBackend = useCallback(() => {
+    setBackendStatus({ online: false, checking: true });
+    return runBackendProbe();
+  }, [runBackendProbe]);
+
   useEffect(() => {
-    let isMounted = true;
-    checkBackendStatus().then(status => {
-      if (isMounted) {
-        setBackendStatus({ ...status, checking: false });
-      }
-    });
+    runBackendProbe();
     return () => {
-      isMounted = false;
+      backendProbe.current += 1;
     };
-  }, []);
+  }, [runBackendProbe]);
 
   const handleScanComplete = () => {
     refreshStorageData();
