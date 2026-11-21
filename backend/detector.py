@@ -13,7 +13,14 @@ BRANDS = {
     "SBI": ("sbi.co.in", "onlinesbi.sbi", "sbi.bank.in"),
 }
 SHORT = {"bit.ly", "tinyurl.com"}
-URL = re.compile(r"(?i)(?:https?://[^\s<>\"']+|(?<![\w@./-])(?:[\w-]+\.)+(?:[a-z]{2,63})\b(?:/[^\s<>\"']*)?)")
+URL = re.compile(
+    r"""https?://[^\s<>"'“”‘’]*"""
+    r"""|(?<![\w@./%-])(?:[\w-]+\.)+(?:xn--[a-z0-9-]+|[a-z]{2,63})"""
+    r"""(?![\w@%-]|\.+[\w-])(?:[:/?#][^\s<>"'“”‘’]*)?""",
+    re.I,
+)
+URL_CLOSERS = {")": "(", "]": "[", "}": "{"}
+URL_SCHEME = re.compile(r"[a-z][a-z0-9+.-]*://", re.I)
 LATIN_CREDENTIAL = r"(?:OTP|UPI(?:\s+|\s*-\s*)PIN|(?:one[- ]time\s+)?verification\s+code|one[- ]time\s+password)"
 HINDI_CREDENTIAL = rf"(?:ओटीपी|सत्यापन\s+कोड|यूपीआई\s+पिन|{LATIN_CREDENTIAL})"
 KANNADA_CREDENTIAL = rf"(?:[ಒಓ]ಟಿಪಿ(?:ಯನ್ನು)?|ಪರಿಶೀಲನಾ\s+ಕೋಡ್|ಯುಪಿಐ\s+ಪಿನ್|{LATIN_CREDENTIAL})"
@@ -58,9 +65,13 @@ URGENCY = re.compile(
 
 
 
+def split_candidate(value):
+    return urlsplit(value if URL_SCHEME.match(value) else "https://" + value)
+
+
 def host(value):
     try:
-        parsed = urlsplit(value if "://" in value else "https://" + value)
+        parsed = split_candidate(value)
         _ = parsed.port  # Reject malformed ports.
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             return ""
@@ -69,13 +80,42 @@ def host(value):
         return ""
 
 
+def trim_url(match):
+    candidate = match.group()
+    excess = {
+        close: candidate.count(close) - candidate.count(opening)
+        for close, opening in URL_CLOSERS.items()
+    }
+    before = match.start() - 1
+    end = len(candidate)
+    while end:
+        tail = candidate[end - 1]
+        if tail in ".,;!?":
+            end -= 1
+            continue
+        if tail == ":" and candidate[end - 2] != ":":
+            end -= 1
+            continue
+        if tail not in URL_CLOSERS or excess[tail] <= 0:
+            break
+        wrapped = before >= 0 and match.string[before] == URL_CLOSERS[tail]
+        # An extra bracket in a host can make the address invalid.
+        if tail != ")" and not wrapped:
+            break
+        if wrapped:
+            before -= 1
+        excess[tail] -= 1
+        end -= 1
+    return candidate[:end]
+
+
 async def short_target(client, value):
     # Contact only the two named providers. Build the origin ourselves.
     # Never request the returned Location or forward credentials/query tokens.
     hostname = host(value)
     if hostname not in SHORT:
         return None
-    parsed = urlsplit(value if "://" in value else "https://" + value)
+    parsed = split_candidate(value)
     if not re.fullmatch(r"/[A-Za-z0-9_-]{1,128}/?", parsed.path) or parsed.query or parsed.username:
         return None
     origin = "https://" + hostname + parsed.path
@@ -107,9 +147,10 @@ def secret_requests(message):
 
 
 async def analyze(content, client=None):
-    matches = list(URL.finditer(content))
-    urls = list(dict.fromkeys(m.group().rstrip(".,;:!?)]}") for m in matches))
-    link_only = bool(urls) and not URL.sub("", content).strip(" \r\n\t,;.")
+    urls = list(dict.fromkeys(trim_url(match) for match in URL.finditer(content)))
+    # Preserve offsets while excluding URL paths from the language checks.
+    message = URL.sub(lambda match: " " * len(match.group()), content)
+    link_only = bool(urls) and not message.strip(" \r\n\t,;.")
     reasons, signals, highlights = [], [], []
 
     def add(label, weight, evidence, reason):
@@ -120,8 +161,6 @@ async def analyze(content, client=None):
         if reason not in reasons:
             reasons.append(reason)
 
-    # Preserve offsets while excluding URL paths from the language checks.
-    message = URL.sub(lambda m: " " * len(m.group()), content)
     for match in secret_requests(message):
         evidence = content[match.start():match.end()]
         add("Request for a secret", 75, evidence, "The message asks for an OTP or payment PIN.")
@@ -166,9 +205,7 @@ async def analyze(content, client=None):
             continue
 
         # Detect URLs with misleading user information before @.
-        parsed = urlsplit(
-            url if "://" in url else "https://" + url
-        )
+        parsed = split_candidate(url)
 
         if parsed.username is not None or parsed.password is not None:
             add(
@@ -189,12 +226,9 @@ async def analyze(content, client=None):
         # Compare longer brand labels only. Fuzzy matches are weak evidence.
 
         # Detect percent-encoded characters in the URL authority.
-        parsed_url = urlsplit(url)
-
-
         if re.search(
             r"%[0-9a-fA-F]{2}",
-            parsed_url.hostname or ""
+            parsed.hostname or ""
         ):
 
             add(

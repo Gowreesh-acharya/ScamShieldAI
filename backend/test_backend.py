@@ -416,6 +416,89 @@ class TestBackend(unittest.TestCase):
         self.assertFalse(data["link_only"])
 
 
+    def test_url_extraction_preserves_complete_candidates(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        for message, expected_url, link_only in [
+            ("http://[::1]", "http://[::1]", True),
+            ("http://[::1]/audit", "http://[::1]/audit", True),
+            ("http://[::1]:8080/audit", "http://[::1]:8080/audit", True),
+            ("See [http://[::1]].", "http://[::1]", False),
+            ("https://example.org/receipt_(draft)", "https://example.org/receipt_(draft)", True),
+            ("See (https://example.org/receipt_(draft)).", "https://example.org/receipt_(draft)", False),
+            ("See https://example.org/receipt.", "https://example.org/receipt", False),
+            ("See “https://example.org/receipt”.", "https://example.org/receipt", False),
+            ("example.org:8443/receipt", "example.org:8443/receipt", True),
+            ("example.org?reference=opaque-demo#receipt", "example.org?reference=opaque-demo#receipt", True),
+            ("example.org?next=https://example.test/a", "example.org?next=https://example.test/a", True),
+            ("https://example.org/pay?tag=(draft)", "https://example.org/pay?tag=(draft)", True),
+        ]:
+            with self.subTest(message=message):
+                response = scan_client.post("/api/analyze", json={"content": message})
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["extracted_urls"], [expected_url])
+                self.assertEqual(data["link_only"], link_only)
+                self.assertEqual((data["verdict"], data["score"]), ("SAFE", 0))
+
+    def test_malformed_urls_remain_complete_and_unreadable(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        for url in [
+            "https://[bad",
+            "http://[::not-an-ip]/",
+            "http://[::1]]",
+            "http://[::1]garbage",
+            "https://example.org:bad/pay",
+            "https://example.org:65536/pay",
+            "example.org:bad/pay",
+            "example.org::",
+            "https://",
+        ]:
+            with self.subTest(url=url):
+                response = scan_client.post("/api/analyze", json={"content": url})
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["extracted_urls"], [url])
+                self.assertEqual(data["highlighted_phrases"], [url])
+                self.assertEqual(data["signals"], [{"label": "Unreadable address", "weight": 25}])
+                self.assertEqual((data["verdict"], data["score"]), ("SUSPICIOUS", 25))
+
+    def test_internationalized_url_evidence_and_bare_candidate_boundaries(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        for content, urls in [
+            ("https://例子.测试/receipt", ["https://例子.测试/receipt"]),
+            ("https://xn--fsqu00a.xn--0zwm56d/receipt", ["https://xn--fsqu00a.xn--0zwm56d/receipt"]),
+            ("xn--fsqu00a.xn--0zwm56d/receipt", ["xn--fsqu00a.xn--0zwm56d/receipt"]),
+            ("someone@example.org", []),
+            ("example.org.123/receipt", []),
+        ]:
+            with self.subTest(content=content):
+                response = scan_client.post("/api/analyze", json={"content": content})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["extracted_urls"], urls)
+
+    def test_complete_urls_preserve_order_deduplication_and_credential_evidence(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        first = "example.org:8443/receipt"
+        second = "https://sbi-verify.example.test/login?kind=kyc"
+        for content, link_only, score, verdict, signals, highlights in [
+            (f"{first}\n{second}\n{first}", True, 35, "SUSPICIOUS",
+             [{"label": "Brand and domain differ", "weight": 35}], [second]),
+            (f"Reply with your OTP. Use {first}, then {second}. Backup {first}.",
+             False, 100, "HIGH_RISK", [
+                 {"label": "Request for a secret", "weight": 75},
+                 {"label": "Brand and domain differ", "weight": 35},
+             ], ["Reply with your OTP", second]),
+        ]:
+            with self.subTest(link_only=link_only):
+                response = scan_client.post("/api/analyze", json={"content": content})
+                self.assertEqual(response.status_code, 200)
+                data = response.json()
+                self.assertEqual(data["extracted_urls"], [first, second])
+                self.assertEqual(data["link_only"], link_only)
+                self.assertEqual(data["signals"], signals)
+                self.assertEqual(data["highlighted_phrases"], highlights)
+                self.assertEqual((data["verdict"], data["score"]), (verdict, score))
+
     def test_multiple_urls(self):
         safe_url = "https://example.com"
         suspicious_url = "https://sbi-kyc-verify.example.com/login"
