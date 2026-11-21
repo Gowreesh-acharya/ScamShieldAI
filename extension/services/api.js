@@ -143,13 +143,41 @@ function normalizeResponse(raw, fallbackTarget, fallbackType) {
   }
 
   const normalizedScore = score !== null ? score : 0;
-  const rawVerdict = (raw.verdict || (normalizedScore > 60 ? "SCAM" : normalizedScore > 30 ? "SUSPICIOUS" : "SAFE")).trim();
-  const isSafe = rawVerdict.toUpperCase() === "SAFE";
 
-  // Requirement 6: SAFE must display: "No obvious warning signs found."
-  const displayVerdict = isSafe ? "No obvious warning signs found." : rawVerdict;
+  // Use backend verdict as the SOLE source of classification — never override with score thresholds.
+  // Accepted verdict values from Miraj's API: "SAFE", "SUSPICIOUS", "HIGH_RISK"
+  const rawVerdict = raw.verdict ? String(raw.verdict).trim().toUpperCase() : "";
 
-  const riskLevel = raw.risk_level || (normalizedScore > 60 ? "HIGH" : normalizedScore > 30 ? "MEDIUM" : "LOW");
+  // Map verdict → display label (shown in verdict banner)
+  let displayVerdict;
+  if (rawVerdict === "SAFE") {
+    displayVerdict = "No obvious warning signs found.";
+  } else if (rawVerdict === "SUSPICIOUS") {
+    displayVerdict = "Suspicious";
+  } else if (rawVerdict === "HIGH_RISK") {
+    displayVerdict = "High Risk";
+  } else if (rawVerdict) {
+    // Unknown but non-empty verdict from backend — show as-is, never silently downgrade to SAFE
+    displayVerdict = rawVerdict;
+  } else {
+    // verdict field absent entirely: fail safe (non-SAFE result)
+    throw new Error("Backend response missing required 'verdict' field.");
+  }
+
+  const isSafe = rawVerdict === "SAFE";
+
+  // Derive risk_level exclusively from verdict — score is informational only
+  let riskLevel;
+  if (rawVerdict === "SAFE") {
+    riskLevel = "LOW";
+  } else if (rawVerdict === "SUSPICIOUS") {
+    riskLevel = "MEDIUM";
+  } else if (rawVerdict === "HIGH_RISK") {
+    riskLevel = "HIGH";
+  } else {
+    // Unknown verdict: treat as HIGH to avoid false-safe classification
+    riskLevel = "HIGH";
+  }
 
   // Normalize signals: array of { label, weight }
   let signalsList = [];

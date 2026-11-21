@@ -275,19 +275,20 @@ function renderResults(data) {
     circleMeter.style.strokeDashoffset = `${offset}`;
   }
 
-  // Styling by Risk Level (Restrained, Commercial 1Password Palette)
-  const level = (data.risk_level || (score > 60 ? "HIGH" : score > 30 ? "MEDIUM" : "LOW")).toUpperCase();
+  // Classification is driven exclusively by the backend verdict via data.risk_level.
+  // The numerical score is informational only — it must NOT override the verdict label or badge.
+  const level = (data.risk_level || "LOW").toUpperCase();
   scoreCard.className = "card score-card";
   riskScoreBar.className = "progress-bar-fill";
   riskLevelBadge.className = "risk-pill";
 
-  if (level === "HIGH" || score > 60) {
+  if (level === "HIGH") {
     scoreCard.style.borderTopColor = "var(--risk-high)";
     if (circleMeter) circleMeter.style.stroke = "var(--risk-high)";
     riskScoreBar.classList.add("bar-high");
     riskLevelBadge.classList.add("risk-high");
     riskLevelBadge.textContent = "HIGH RISK";
-  } else if (level === "MEDIUM" || score > 30) {
+  } else if (level === "MEDIUM") {
     scoreCard.style.borderTopColor = "var(--risk-medium)";
     if (circleMeter) circleMeter.style.stroke = "var(--risk-medium)";
     riskScoreBar.classList.add("bar-medium");
