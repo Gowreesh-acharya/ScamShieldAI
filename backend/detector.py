@@ -14,8 +14,35 @@ BRANDS = {
 }
 SHORT = {"bit.ly", "tinyurl.com"}
 URL = re.compile(r"(?i)(?:https?://[^\s<>\"']+|(?<![\w@./-])(?:[\w-]+\.)+(?:[a-z]{2,63})\b(?:/[^\s<>\"']*)?)")
-SECRET = re.compile(r"\b(?:(?:reply(?:\s+with)?|share|send|tell|enter)\s+(?:(?:us|me|your|the|apna|apni|with)\s+){0,4}(?:OTP|UPI\s+PIN)|(?:OTP|UPI\s+PIN)\s+(?:batao|bhejo|daalo|share\s+karo))\b", re.I)
-NEGATION = re.compile(r"(?:\bnever|\bdon['’]t|\bdo\s+not|\bmat|\bdon’t\s+ever)(?:\s+ever)?\s*$", re.I)
+LATIN_CREDENTIAL = r"(?:OTP|UPI(?:\s+|\s*-\s*)PIN|(?:one[- ]time\s+)?verification\s+code|one[- ]time\s+password)"
+HINDI_CREDENTIAL = rf"(?:ओटीपी|सत्यापन\s+कोड|यूपीआई\s+पिन|{LATIN_CREDENTIAL})"
+KANNADA_CREDENTIAL = rf"(?:[ಒಓ]ಟಿಪಿ(?:ಯನ್ನು)?|ಪರಿಶೀಲನಾ\s+ಕೋಡ್|ಯುಪಿಐ\s+ಪಿನ್|{LATIN_CREDENTIAL})"
+HINDI_REQUEST = rf"(?:अपना\s+)?{HINDI_CREDENTIAL}\s+(?:हमें\s+)?(?:भेजें|भेजो|बताएँ|बताएं|बताओ|साझा\s+करें)"
+KANNADA_REQUEST = rf"(?:ನಿಮ್ಮ\s+)?{KANNADA_CREDENTIAL}\s+(?:ಅನ್ನು\s+)?(?:ಕಳುಹಿಸಿ|ಹಂಚಿಕೊಳ್ಳಿ)"
+# Native words can end in combining marks, which Python's \b treats as non-word characters.
+NATIVE_SEPARATORS = r"""\s.,;:!?।॥"'“”‘’()\[\]–—"""
+SECRET = re.compile(
+    rf"\b(?:(?:reply(?:\s+with)?|share|send|tell|enter)\s+"
+    rf"(?:(?:us|me|your|the|apna|apni|with)\s+){{0,4}}{LATIN_CREDENTIAL}"
+    rf"|{LATIN_CREDENTIAL}\s+(?:batao|bhejo|daalo|share\s+karo|de\s+do))\b"
+    rf"|(?<![^{NATIVE_SEPARATORS}])(?:{HINDI_REQUEST}|{KANNADA_REQUEST})(?![^{NATIVE_SEPARATORS}])",
+    re.I,
+)
+NEGATION = re.compile(
+    r"\b(?:never|don['’]t|(?:do|should|must)\s+not|mat|not\s+to)"
+    r"(?:(?:\s+|,\s*)(?:ever|under\s+any\s+circumstances),?)?"
+    r"(?:\s+(?:share|send|tell|enter|reveal|disclose)\s+(?:or|nor))?\s*\Z",
+    re.I,
+)
+QUOTED_TEXT = re.compile(r"""“[^”\r\n]+”|"[^"\r\n]+"|‘[^’\r\n]+’|(?<!\w)'[^'\r\n]+'(?!\w)""")
+EXAMPLE_INTRO = re.compile(
+    r"\b(?:scam\s+example|example\s+scam|example\s+of\s+(?:a\s+)?scam(?:\s+message)?|"
+    r"scammers?\s+(?:may|might)\s+(?:say|write)|if\s+someone\s+says|"
+    r"(?:do\s+not|don['’]t|never)\s+(?:reply|respond)\s+to(?:\s+messages?\s+(?:like|that\s+say))?)"
+    r"\s*:?\s*\Z",
+    re.I,
+)
+EXAMPLE_DESCRIPTION = re.compile(r"\s+is\s+(?:a\s+scam|an\s+example\s+of\s+(?:a\s+)?scam)\b", re.I)
 
 
 URGENCY = re.compile(
@@ -63,6 +90,22 @@ async def short_target(client, value):
     return None
 
 
+def secret_requests(message):
+    example_spans = [
+        quote.span()
+        for quote in QUOTED_TEXT.finditer(message)
+        if EXAMPLE_INTRO.search(message[max(0, quote.start() - 80):quote.start()])
+        or EXAMPLE_DESCRIPTION.match(message, quote.end())
+    ]
+    for match in SECRET.finditer(message):
+        before = message[max(0, match.start() - 80):match.start()]
+        if NEGATION.search(before):
+            continue
+        if any(start <= match.start() and match.end() <= end for start, end in example_spans):
+            continue
+        yield match
+
+
 async def analyze(content, client=None):
     matches = list(URL.finditer(content))
     urls = list(dict.fromkeys(m.group().rstrip(".,;:!?)]}") for m in matches))
@@ -79,9 +122,9 @@ async def analyze(content, client=None):
 
     # Preserve offsets while excluding URL paths from the language checks.
     message = URL.sub(lambda m: " " * len(m.group()), content)
-    for m in SECRET.finditer(message):
-        if not NEGATION.search(message[max(0, m.start()-32):m.start()]):
-            add("Request for a secret", 75, m.group(), "The message asks for an OTP or payment PIN.")
+    for match in secret_requests(message):
+        evidence = content[match.start():match.end()]
+        add("Request for a secret", 75, evidence, "The message asks for an OTP or payment PIN.")
 
     for m in URGENCY.finditer(message):
         before = message[max(0, m.start() - 50):m.start()]

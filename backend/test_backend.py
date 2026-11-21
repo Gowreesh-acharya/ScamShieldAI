@@ -28,6 +28,70 @@ class TestBackend(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.json()["verdict"], expected)
 
+    def test_credential_requests_preserve_signal_and_evidence(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        expected_fields = {
+            "verdict", "score", "link_only", "notice", "highlighted_phrases",
+            "extracted_urls", "unrolled_urls", "signals", "reason", "action", "safety_tip",
+        }
+        for message, evidence in [
+            ("अपना ओटीपी भेजें।", "अपना ओटीपी भेजें"),
+            ("ನಿಮ್ಮ ಒಟಿಪಿಯನ್ನು ಕಳುಹಿಸಿ.", "ನಿಮ್ಮ ಒಟಿಪಿಯನ್ನು ಕಳುಹಿಸಿ"),
+            ("OTP de do.", "OTP de do"),
+            ("Share your UPI-PIN to receive a refund.", "Share your UPI-PIN"),
+            ("Reply with your OTP.", "Reply with your OTP"),
+            ("Reply with your one-time verification code.", "Reply with your one-time verification code"),
+            ("अपना सत्यापन कोड भेजें।", "अपना सत्यापन कोड भेजें"),
+            ("ನಿಮ್ಮ ಯುಪಿಐ ಪಿನ್ ಕಳುಹಿಸಿ.", "ನಿಮ್ಮ ಯುಪಿಐ ಪಿನ್ ಕಳುಹಿಸಿ"),
+            ("Verification code bhejo.", "Verification code bhejo"),
+        ]:
+            with self.subTest(message=message):
+                response = scan_client.post("/api/analyze", json={"content": message})
+                self.assertEqual(response.status_code, 200)
+                result = response.json()
+                self.assertEqual(set(result), expected_fields)
+                self.assertEqual((result["verdict"], result["score"]), ("HIGH_RISK", 75))
+                self.assertEqual(result["signals"], [{"label": "Request for a secret", "weight": 75}])
+                self.assertEqual(result["highlighted_phrases"], [evidence])
+
+    def test_credential_warnings_and_quoted_examples(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        for message in [
+            "अपना ओटीपी कभी साझा न करें।",
+            "ನಿಮ್ಮ ಒಟಿಪಿಯನ್ನು ಯಾರೊಂದಿಗೂ ಹಂಚಿಕೊಳ್ಳಬೇಡಿ.",
+            "OTP kisi ko mat dena.",
+            "Never share your UPI PIN.",
+            "Do not under any circumstances share your OTP.",
+            "Do not share or send your OTP.",
+            "Do not share your one-time verification code.",
+            "अपना सत्यापन कोड कभी साझा न करें।",
+            "ನಿಮ್ಮ ಯುಪಿಐ ಪಿನ್ ಕಳುಹಿಸಬೇಡಿ.",
+            'Scam example: "Reply with your OTP."',
+            "If someone says “Send us your OTP”, do not respond.",
+            "'Reply with your OTP' is an example of a scam.",
+        ]:
+            with self.subTest(message=message):
+                response = scan_client.post("/api/analyze", json={"content": message})
+                self.assertEqual(response.status_code, 200)
+                result = response.json()
+                self.assertEqual((result["verdict"], result["score"]), ("SAFE", 0))
+                self.assertEqual(result["signals"], [])
+                self.assertEqual(result["highlighted_phrases"], [])
+
+    def test_credential_requests_survive_separate_warnings(self):
+        scan_client = self.enterContext(TestClient(create_app(public_mode=True)))
+        for message, evidence in [
+            ("Never share your OTP. Now send us your OTP.", "send us your OTP"),
+            ('Scam example: "Reply with your OTP." Now send us your OTP.', "send us your OTP"),
+            ('"Reply with your OTP."', "Reply with your OTP"),
+        ]:
+            with self.subTest(message=message):
+                response = scan_client.post("/api/analyze", json={"content": message})
+                self.assertEqual(response.status_code, 200)
+                result = response.json()
+                self.assertEqual((result["verdict"], result["score"]), ("HIGH_RISK", 75))
+                self.assertEqual(result["highlighted_phrases"], [evidence])
+
     def test_maximum_allowed_content(self):
         message = "A" * 5000
 
