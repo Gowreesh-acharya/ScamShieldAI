@@ -1,10 +1,11 @@
 import asyncio
 import unittest
+from unittest.mock import patch
 
 import httpx
 from fastapi.testclient import TestClient
 from detector import analyze
-from main import app
+from main import app, create_app
 
 client = TestClient(app)
 
@@ -99,7 +100,39 @@ class TestBackend(unittest.TestCase):
             ["body", "content"]
         )
 
+    def test_visually_empty_content_rejected_with_redacted_details(self):
+        cases = [
+            ("zero-width space", "\u200b"),
+            ("byte-order mark", "\ufeff"),
+            ("mixed whitespace and formats", " \t\n\u00a0\u200b\u200c\u200d\ufeff"),
+        ]
+        for label, content in cases:
+            with self.subTest(input=label):
+                response = client.post("/api/analyze", json={"content": content})
 
+                self.assertEqual(response.status_code, 422)
+                self.assertEqual(response.headers["cache-control"], "no-store")
+                self.assertEqual(response.json(), {"detail": [{
+                    "type": "value_error",
+                    "loc": ["body", "content"],
+                    "msg": "Paste a message or link.",
+                }]})
+
+    def test_meaningful_selected_text_reaches_detector_unchanged(self):
+        cases = [
+            ("English with a combining mark", "Your cafe\u0301 order is ready."),
+            ("Hindi with a joiner", "क्\u200dष का अभ्यास करें।"),
+            ("Kannada with a non-joiner", "ಕ್\u200cಷ ಅಕ್ಷರವನ್ನು ಓದಿ."),
+            ("Hinglish", "Aapka order taiyaar hai."),
+            ("multiline", "Account update\nReply with your OTP\nUse the official app."),
+        ]
+        with TestClient(create_app(public_mode=True)) as public_client:
+            for label, content in cases:
+                with self.subTest(input=label), patch("main.analyze", wraps=analyze) as detector:
+                    response = public_client.post("/api/analyze", json={"content": content})
+
+                    self.assertEqual(response.status_code, 200)
+                    detector.assert_awaited_once_with(content)
 
     def test_oversized_content_rejected(self):
         message = "A" * 10000

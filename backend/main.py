@@ -1,4 +1,5 @@
 import os
+import unicodedata
 from typing import Literal
 
 import httpx
@@ -44,9 +45,11 @@ class ScanInput(BaseModel):
     @field_validator("content")
     @classmethod
     def require_content(cls, value):
-        if not value.strip():
+        content = value.strip()
+        # A visually blank selection may contain Unicode format (Cf) characters.
+        if all(char.isspace() or unicodedata.category(char) == "Cf" for char in content):
             raise ValueError("Paste a message or link.")
-        return value.strip()
+        return content
 
 
 class Signal(BaseModel):
