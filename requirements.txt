@@ -1,0 +1,9 @@
+# ScamShield AI - AI Detection Engine Dependencies
+# Build Bengaluru 2.0 Hackathon
+
+# The AI Detection Engine is designed to run with ZERO external runtime dependencies
+# using Python 3.12 standard libraries (urllib.parse, ipaddress, re, dataclasses, json).
+#
+# Optional development dependencies:
+# pytest>=7.0.0
+# pydantic>=2.0.0
