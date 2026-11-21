@@ -1,0 +1,207 @@
+/* ==========================================================================
+   ScamShield AI - Enterprise Cybersecurity SaaS Design System
+   Themes: Warm Cream & Coffee (Light) | Espresso & Charcoal (Dark) | System
+   Fixed Coffee Brown (#3B2A20) Sidebar in Both Themes
+   ========================================================================== */
+
+:root,
+[data-theme="light"] {
+  /* Warm Cream & Coffee Light Palette */
+  --bg-canvas: #F7F3ED;
+  --bg-surface-card: #FFFCF7;
+  --bg-surface-1: #FFFCF7;
+  --bg-surface-2: #EFE7DC;
+  --bg-surface-3: #E8D8C5;
+  --bg-surface-input: #FFFFFF;
+  --bg-surface-secondary: #EFE7DC;
+  --bg-surface-card-hover: #F8F2E8;
+  --bg-header: #E8D8C5;
+
+  /* Headings & Text */
+  --text-heading: #30251F;
+  --text-primary: #30251F;
+  --text-body: #594A40;
+  --text-secondary: #594A40;
+  --text-muted: #796B60;
+  --text-dim: #988A7F;
+
+  /* Buttons */
+  --btn-primary-bg: #79543A;
+  --btn-primary-text: #FFFFFF;
+  --btn-primary-hover: #63432D;
+  --btn-secondary-bg: #EFE7DC;
+  --btn-secondary-text: #30251F;
+  --btn-secondary-border: #E2D6C8;
+
+  /* Accents */
+  --accent-sage: #8A9B79;
+  --accent-champagne: #C49A58;
+  --accent-cyan: #0284C7;
+  --accent-blue: #79543A;
+  --accent-blue-hover: #63432D;
+  --accent-sky: #0284C7;
+  --accent-subtle: rgba(196, 154, 88, 0.12);
+
+  /* Borders & Dividers */
+  --border-subtle: #E2D6C8;
+  --border-default: #D6C5B3;
+  --border-medium: #C8B5A0;
+  --border-accent: rgba(196, 154, 88, 0.4);
+  --border-focus: #79543A;
+
+  /* Shadows */
+  --shadow-subtle: 0 1px 3px rgba(48, 37, 31, 0.05);
+  --shadow-card: 0 4px 14px -2px rgba(48, 37, 31, 0.08), 0 2px 6px -1px rgba(48, 37, 31, 0.04);
+  --shadow-popover: 0 16px 32px -4px rgba(48, 37, 31, 0.18), 0 4px 10px -2px rgba(48, 37, 31, 0.08);
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  /* Deep Espresso & Charcoal Dark Palette */
+  --bg-canvas: #17130F;
+  --bg-surface-card: #241C16;
+  --bg-surface-1: #241C16;
+  --bg-surface-2: #30251F;
+  --bg-surface-3: #3B2A20;
+  --bg-surface-input: #1C1511;
+  --bg-surface-secondary: #30251F;
+  --bg-surface-card-hover: #2C221B;
+  --bg-header: #30251F;
+
+  /* Headings & Text */
+  --text-heading: #F5EBDD;
+  --text-primary: #F5EBDD;
+  --text-body: #D7C6B5;
+  --text-secondary: #D7C6B5;
+  --text-muted: #B7A797;
+  --text-dim: #8E7F70;
+
+  /* Buttons */
+  --btn-primary-bg: #A67C52;
+  --btn-primary-text: #FFFFFF;
+  --btn-primary-hover: #BC8F60;
+  --btn-secondary-bg: #30251F;
+  --btn-secondary-text: #F5EBDD;
+  --btn-secondary-border: #49392D;
+
+  /* Accents */
+  --accent-sage: #A3B18A;
+  --accent-champagne: #D6AE70;
+  --accent-cyan: #38BDF8;
+  --accent-blue: #A67C52;
+  --accent-blue-hover: #BC8F60;
+  --accent-sky: #38BDF8;
+  --accent-subtle: rgba(214, 174, 112, 0.15);
+
+  /* Borders & Dividers */
+  --border-subtle: #49392D;
+  --border-default: #5A4739;
+  --border-medium: #6E5747;
+  --border-accent: rgba(214, 174, 112, 0.4);
+  --border-focus: #D6AE70;
+
+  /* Shadows */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 6px 18px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-popover: 0 18px 36px -4px rgba(0, 0, 0, 0.75), 0 6px 12px -2px rgba(0, 0, 0, 0.45);
+
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   Shared System Variables (Both Themes)
+   ========================================================================== */
+:root {
+  /* Fixed Coffee Brown Sidebar in BOTH Themes */
+  --bg-sidebar: #3B2A20;
+  --sidebar-border: #4D382B;
+  --sidebar-heading: #F5EBDD;
+  --sidebar-text: #D7C6B5;
+  --sidebar-muted: #A8988A;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+  --sidebar-active-bg: rgba(196, 154, 88, 0.22);
+  --sidebar-active-border: #C49A58;
+  --sidebar-badge-bg: rgba(196, 154, 88, 0.25);
+  --sidebar-badge-text: #D6AE70;
+
+  /* Semantic Consistent Threat Colors */
+  --threat-danger: #EF4444;
+  --threat-danger-bg: rgba(239, 68, 68, 0.12);
+  --threat-danger-border: rgba(239, 68, 68, 0.38);
+  --threat-danger-glow: rgba(239, 68, 68, 0.2);
+
+  --threat-warning: #F59E0B;
+  --threat-warning-bg: rgba(245, 158, 11, 0.12);
+  --threat-warning-border: rgba(245, 158, 11, 0.38);
+  --threat-warning-glow: rgba(245, 158, 11, 0.2);
+
+  --threat-safe: #10B981;
+  --threat-safe-bg: rgba(16, 185, 129, 0.12);
+  --threat-safe-border: rgba(16, 185, 129, 0.38);
+  --threat-safe-glow: rgba(16, 185, 129, 0.2);
+
+  /* Fonts */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* Transitions */
+  --transition-fast: 140ms ease;
+  --transition-normal: 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base Reset & Typography Setup */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100vh;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Accessible focus outline */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
