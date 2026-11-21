@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScamShield AI – Commercial Security Extension</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <rect x="9" y="11" width="6" height="5" rx="1"/>
+          <path d="M10 11V9a2 2 0 1 1 4 0v2"/>
+        </svg>
+      </div>
+      <div class="brand-text-block">
+        <div class="brand-title-row">
+          <h1 class="brand-title">ScamShield<span class="brand-title-accent">AI</span></h1>
+          <span class="engine-status-pill" title="Heuristic & API engine online">
+            <span class="status-dot"></span>Ready
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="settingsToggleBtn" class="icon-button" title="Backend Configuration" aria-label="Settings">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs (1Password & Proton Pass Style) -->
+  <nav class="app-nav" aria-label="Main Navigation">
+    <button class="nav-tab active" data-tab="tabScanner">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      Scanner
+    </button>
+    <button class="nav-tab" data-tab="tabProtection">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      Protection Center
+    </button>
+    <button class="nav-tab nav-tab-emergency" data-tab="tabEmergency">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      Emergency 1930
+    </button>
+  </nav>
+
+  <!-- Collapsible Settings Panel -->
+  <section id="settingsPanel" class="settings-panel hidden">
+    <div class="settings-header">
+      <div class="settings-title-group">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <h3>Backend API Configuration</h3>
+      </div>
+      <button id="closeSettingsBtn" class="close-btn" aria-label="Close settings">&times;</button>
+    </div>
+    <div class="settings-body">
+      <div class="form-group">
+        <label for="cfgBackendUrl">FastAPI Host URL (Backend Endpoint)</label>
+        <input type="text" id="cfgBackendUrl" value="http://127.0.0.1:8000" placeholder="http://127.0.0.1:8000">
+      </div>
+      <div class="form-group">
+        <label for="cfgApiEndpoint">Analysis Endpoint Path</label>
+        <input type="text" id="cfgApiEndpoint" value="/api/analyze" placeholder="/api/analyze">
+      </div>
+      <div class="form-group checkbox-group">
+        <label>
+          <input type="checkbox" id="cfgMockFallback" checked>
+          <span>Enable Simulated Demo Fallback if backend is offline</span>
+        </label>
+      </div>
+      <div class="settings-actions">
+        <button id="saveSettingsBtn" class="btn btn-primary btn-sm">Save Config</button>
+        <button id="resetSettingsBtn" class="btn btn-secondary btn-sm">Reset Defaults</button>
+      </div>
+      <p id="settingsFeedback" class="feedback-text"></p>
+    </div>
+  </section>
+
+  <!-- Main Content Area -->
+  <main class="main-container">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: SCANNER (PRIMARY EXTENSION WORKFLOW)             -->
+    <!-- ======================================================== -->
+    <div id="tabScanner" class="tab-pane active">
+      
+      <!-- Section B: Main Scanning Section Header -->
+      <section class="section-intro">
+        <h2 class="section-title">Scan suspicious content</h2>
+        <p class="section-desc">Inspect text messages, emails, or links for scam patterns and phishing attempts.</p>
+      </section>
+
+      <!-- 1. Captured Content Review Section -->
+      <section class="card input-card">
+        <div class="card-header">
+          <div class="badge-row">
+            <div class="type-pill-wrapper">
+              <span id="contentTypeBadge" class="badge badge-neutral">TEXT MESSAGE</span>
+              <span id="linkOnlyBadge" class="badge badge-link-only hidden">LINK-ONLY</span>
+            </div>
+            <span id="contentSourceInfo" class="source-info" title="Target Page Origin">Awaiting Input</span>
+          </div>
+        </div>
+        
+        <div class="input-wrapper">
+          <textarea 
+            id="contentInput" 
+            placeholder="Right-click any suspicious SMS, WhatsApp message, email, or link on a webpage and choose 'Check with ScamShield'..."
+            rows="4"
+          ></textarea>
+          <div class="textarea-footer">
+            <span class="shortcut-tip"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to scan</span>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="scanBtn" class="btn btn-primary">
+            <svg class="btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            Scan with ScamShield
+          </button>
+          <button id="clearBtn" class="btn btn-secondary" title="Clear input">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Clear
+          </button>
+        </div>
+      </section>
+
+      <!-- Section C: Analysis / Loading State (Calm, Professional) -->
+      <section id="loadingState" class="state-card loading-card hidden">
+        <div class="loading-bar-wrapper">
+          <div class="loading-bar-track">
+            <div class="loading-bar-pulse"></div>
+          </div>
+        </div>
+        <h4 class="loading-title">Evaluating security indicators...</h4>
+        <p class="loading-desc">Sending payload to POST /api/analyze and analyzing threat indicators.</p>
+        <div class="telemetry-log">
+          <div class="log-line"><span>&gt;</span> POST /api/analyze { "content": "..." }</div>
+        </div>
+      </section>
+
+      <!-- 3. Error / Offline State -->
+      <section id="errorState" class="state-card error-card hidden">
+        <div class="state-icon error-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <h4 id="errorTitle">Backend Offline</h4>
+        <p id="errorMessage">FastAPI backend is unreachable at http://127.0.0.1:8000.</p>
+        
+        <div class="error-actions">
+          <button id="retryScanBtn" class="btn btn-primary btn-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            Retry Real Backend
+          </button>
+          <button id="simulateMockBtn" class="btn btn-secondary btn-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Run Simulated Demo
+          </button>
+        </div>
+        <div class="help-box">
+          <small>Start backend service: <code>uvicorn main:app --reload --host 127.0.0.1 --port 8000</code></small>
+        </div>
+      </section>
+
+      <!-- 4. Empty State -->
+      <section id="emptyState" class="state-card empty-card">
+        <div class="empty-shield-graphic">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <rect x="9" y="11" width="6" height="5" rx="1"/>
+            <path d="M10 11V9a2 2 0 1 1 4 0v2"/>
+          </svg>
+        </div>
+        <h4>ScamShield AI Ready</h4>
+        <p>Select any suspicious text message, email, or link on a webpage, right-click and choose <strong class="highlight-text">"Check with ScamShield"</strong> to begin instant threat analysis.</p>
+        <div class="quick-tips-row">
+          <span class="tip-chip">KYC Verification</span>
+          <span class="tip-chip">SIM Deactivation</span>
+          <span class="tip-chip">Bank Phishing</span>
+          <span class="tip-chip">UPI Fraud</span>
+        </div>
+      </section>
+
+      <!-- Section D: Results Section (Immediate Clarity, 1Password/Proton Style) -->
+      <section id="resultState" class="result-container hidden">
+        
+        <!-- Mock Simulation Notice (Displayed ONLY during demo mock fallback) -->
+        <div id="mockNoticeBanner" class="mock-banner hidden">
+          <div class="mock-beacon"></div>
+          <div class="mock-text-content">
+            <span class="mock-tag">DEMO SIMULATION MODE</span>
+            <span class="mock-desc">Real FastAPI backend is offline at http://127.0.0.1:8000. These results are simulated for demonstration purposes.</span>
+          </div>
+        </div>
+
+        <!-- Backend Notice Banner (if returned by backend) -->
+        <div id="apiNoticeCard" class="card notice-card hidden">
+          <div class="notice-icon">ℹ</div>
+          <div class="notice-body">
+            <span class="notice-header">BACKEND ADVISORY</span>
+            <p id="apiNoticeText"></p>
+          </div>
+        </div>
+
+        <!-- Risk Score & Assessment Card -->
+        <div class="card score-card" id="scoreCard">
+          <div class="score-grid">
+            
+            <!-- Circular Gauge -->
+            <div class="gauge-container">
+              <svg class="circular-meter" viewBox="0 0 100 100">
+                <circle class="meter-track" cx="50" cy="50" r="42" />
+                <circle id="riskCircleMeter" class="meter-fill" cx="50" cy="50" r="42" />
+              </svg>
+              <div class="gauge-inner-content">
+                <span id="riskScoreNumber" class="score-number">0</span>
+                <span class="score-max">/100</span>
+              </div>
+            </div>
+
+            <!-- Score Metadata & Badge -->
+            <div class="score-details-column">
+              <span class="score-caption">THREAT ASSESSMENT</span>
+              <div class="risk-badge-container">
+                <span id="riskLevelBadge" class="risk-pill risk-low">LOW RISK</span>
+              </div>
+              <div id="scamCategoryTag" class="scam-category-tag hidden"></div>
+            </div>
+          </div>
+
+          <!-- Segmented Threshold Bar -->
+          <div class="threshold-track-wrapper">
+            <div class="progress-bar-track">
+              <div id="riskScoreBar" class="progress-bar-fill bar-low" style="width: 0%;"></div>
+            </div>
+            <div class="threshold-markers">
+              <span class="marker marker-low">0 LOW 30</span>
+              <span class="marker marker-med">31 MED 60</span>
+              <span class="marker marker-high">61 HIGH 100</span>
+            </div>
+          </div>
+
+          <div class="verdict-banner">
+            <h3 id="resultVerdict" class="result-verdict">No obvious warning signs found.</h3>
+          </div>
+        </div>
+
+        <!-- Signals (label, weight) -->
+        <div class="card indicators-card" id="signalsCard">
+          <div class="card-section-title">
+            <div class="title-with-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span>Detected Signals &amp; Risk Weights</span>
+            </div>
+            <span id="indicatorCountBadge" class="count-badge">0</span>
+          </div>
+          <div id="indicatorsList" class="indicators-list">
+            <!-- Populated dynamically with label and weight -->
+          </div>
+        </div>
+
+        <!-- Highlighted Evidence Phrases -->
+        <div id="highlightedPhrasesCard" class="card phrases-card hidden">
+          <div class="card-section-title">
+            <div class="title-with-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span>Highlighted Warning Phrases</span>
+            </div>
+          </div>
+          <div id="highlightedPhrasesList" class="phrases-pill-container">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Intercepted URLs (Strictly Non-Clickable) -->
+        <div id="urlsSectionCard" class="card urls-card hidden">
+          <div class="card-section-title">
+            <div class="title-with-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              <span>Intercepted URLs (Non-Clickable)</span>
+            </div>
+          </div>
+          <div id="urlsList" class="urls-container">
+            <!-- Populated dynamically as non-clickable code blocks -->
+          </div>
+        </div>
+
+        <!-- Reason / Explainability Narrative -->
+        <div id="explanationCard" class="card explanation-card">
+          <div class="card-section-title">
+            <div class="title-with-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span>Analysis Reason</span>
+            </div>
+          </div>
+          <p id="explanationText" class="explanation-paragraph"></p>
+        </div>
+
+        <!-- Actionable Safety Recommendations -->
+        <div class="card recommendations-card" id="recommendationsCard">
+          <div class="card-section-title">
+            <div class="title-with-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polyline points="9 11 12 14 22 4"/>
+              </svg>
+              <span>Recommended Action</span>
+            </div>
+          </div>
+          <ul id="recommendationsList" class="recommendations-list">
+            <!-- Populated dynamically -->
+          </ul>
+        </div>
+
+        <!-- Defensive Safety Tip -->
+        <div id="safetyTipCard" class="card safety-tip-card hidden">
+          <div class="card-section-title">
+            <div class="title-with-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span>Defensive Safety Tip</span>
+            </div>
+          </div>
+          <p id="safetyTipText" class="safety-tip-paragraph"></p>
+        </div>
+
+        <!-- Disclaimer Footer -->
+        <footer class="results-footer">
+          <p id="disclaimerText" class="disclaimer-text">
+            ScamShield AI utilizes heuristic evidence analysis. Always verify transactions through verified official channels.
+          </p>
+        </footer>
+      </section>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: PROTECTION CENTER (FIVE ADVANCED CAPABILITIES)    -->
+    <!-- ======================================================== -->
+    <div id="tabProtection" class="tab-pane">
+      
+      <section class="section-intro">
+        <h2 class="section-title">Protection Center</h2>
+        <p class="section-desc">Specialized threat intelligence modules and investigation capabilities.</p>
+      </section>
+
+      <!-- Capability 1: Screenshot Scam Detection -->
+      <article class="card capability-card" id="capScreenshot">
+        <div class="capability-header">
+          <div class="capability-title-group">
+            <div class="capability-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="capability-title">Screenshot Scam Detection</h3>
+              <p class="capability-subtitle">Analyze screenshots of suspicious SMS, WhatsApp, and emails.</p>
+            </div>
+          </div>
+          <span class="status-pill status-in-dev">IN DEVELOPMENT</span>
+        </div>
+
+        <div class="capability-body">
+          <p class="capability-text">Upload a screenshot from mobile messaging apps to run optical character recognition (OCR) and scan for impersonation.</p>
+          
+          <div class="screenshot-dropzone" id="screenshotDropZone">
+            <input type="file" id="screenshotFileInput" accept="image/*" class="file-input-hidden">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span class="dropzone-text">Click or drag image screenshot here</span>
+            <span class="dropzone-subtext">PNG, JPG, WebP supported</span>
+          </div>
+
+          <div id="screenshotPreviewContainer" class="screenshot-preview-box hidden">
+            <img id="screenshotThumbnail" src="" alt="Screenshot preview" class="screenshot-thumb">
+            <div class="screenshot-meta">
+              <span id="screenshotFileName" class="file-name">screenshot.png</span>
+              <span class="ocr-status-tag">OCR Intake Ready</span>
+            </div>
+            <button id="sendScreenshotToScanBtn" class="btn btn-secondary btn-sm">Extract Text to Scanner</button>
+          </div>
+
+          <div class="architecture-note">
+            <span class="note-badge">WORKFLOW</span>
+            <span>Image Intake → OCR Extraction → POST /api/analyze → Risk Result. (OCR backend engine being coordinated with backend team).</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Capability 2: Advanced URL Intelligence -->
+      <article class="card capability-card" id="capUrlIntel">
+        <div class="capability-header">
+          <div class="capability-title-group">
+            <div class="capability-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="capability-title">Advanced URL Intelligence</h3>
+              <p class="capability-subtitle">Deep inspection of redirect hops, shorteners, and domain typosquatting.</p>
+            </div>
+          </div>
+          <span class="status-pill status-in-dev">IN DEVELOPMENT</span>
+        </div>
+
+        <div class="capability-body">
+          <p class="capability-text">Test individual URLs for known obfuscation tactics, raw IP hosting, multi-level subdomains, and suspicious TLDs.</p>
+          
+          <div class="intel-input-row">
+            <input type="text" id="urlIntelInput" class="intel-input" placeholder="e.g. http://192.168.1.1/sbi-kyc.apk or bit.ly/claim">
+            <button id="urlIntelBtn" class="btn btn-secondary btn-sm">Inspect</button>
+          </div>
+
+          <div id="urlIntelResult" class="intel-result-box hidden">
+            <div class="intel-metrics-grid">
+              <div class="metric-item">
+                <span class="metric-label">Structure</span>
+                <span id="intelMetricStructure" class="metric-val">Normal</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Redirects</span>
+                <span id="intelMetricRedirect" class="metric-val">Single Hop</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">Typosquatting</span>
+                <span id="intelMetricTyposquat" class="metric-val">None</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="architecture-note">
+            <span class="note-badge">STATUS</span>
+            <span>Local heuristics active. Live redirect crawler and threat database integration in development with Miraj.</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Capability 3: AI Investigation Assistant -->
+      <article class="card capability-card" id="capAiAssistant">
+        <div class="capability-header">
+          <div class="capability-title-group">
+            <div class="capability-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="capability-title">AI Investigation Assistant</h3>
+              <p class="capability-subtitle">Explain scam indicators and verify doubts in plain, understandable language.</p>
+            </div>
+          </div>
+          <span class="status-pill status-coming-soon">COMING SOON</span>
+        </div>
+
+        <div class="capability-body">
+          <p class="capability-text">Ask specific questions about why a message was flagged or how to verify legitimate communications.</p>
+
+          <div class="assistant-prompts-list">
+            <button class="assistant-chip" data-query="kyc">Why do scammers demand urgent KYC updates?</button>
+            <button class="assistant-chip" data-query="apk">Why is downloading an APK file dangerous?</button>
+            <button class="assistant-chip" data-query="lottery">How does the KBC/Lottery processing fee scam operate?</button>
+          </div>
+
+          <div id="assistantResponseBox" class="assistant-response-box hidden">
+            <p id="assistantResponseText" class="assistant-answer"></p>
+          </div>
+
+          <div class="architecture-note">
+            <span class="note-badge">SECURITY</span>
+            <span>All AI prompts are routed through backend proxy endpoints. No API keys or secrets are stored in extension files.</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Capability 4: Multilingual Scam Detection -->
+      <article class="card capability-card" id="capMultilingual">
+        <div class="capability-header">
+          <div class="capability-title-group">
+            <div class="capability-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="m4.93 4.93 4.24 4.24"/>
+                <path d="m14.83 9.17 4.24-4.24"/>
+                <path d="m14.83 14.83 4.24 4.24"/>
+                <path d="m9.17 14.83-4.24 4.24"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="capability-title">Multilingual Scam Detection</h3>
+              <p class="capability-subtitle">Targeted fraud detection across Indian regional languages.</p>
+            </div>
+          </div>
+          <span class="status-pill status-in-dev">IN DEVELOPMENT</span>
+        </div>
+
+        <div class="capability-body">
+          <p class="capability-text">Language coverage roadmap for SMS phishing and WhatsApp social engineering attacks.</p>
+
+          <div class="language-status-grid">
+            <div class="lang-pill-card active-lang">
+              <span class="lang-name">English</span>
+              <span class="lang-state">Active in Engine</span>
+            </div>
+            <div class="lang-pill-card active-lang">
+              <span class="lang-name">Hinglish</span>
+              <span class="lang-state">Active in Engine</span>
+            </div>
+            <div class="lang-pill-card in-dev-lang">
+              <span class="lang-name">Hindi (हिन्दी)</span>
+              <span class="lang-state">In Development</span>
+            </div>
+            <div class="lang-pill-card coming-soon-lang">
+              <span class="lang-name">Kannada (ಕನ್ನಡ)</span>
+              <span class="lang-state">Coming Soon</span>
+            </div>
+          </div>
+
+          <div class="architecture-note">
+            <span class="note-badge">NOTICE</span>
+            <span>English and Hinglish heuristic tokens are tested and active. Hindi and Kannada dictionary packs are currently in training.</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Capability 5: Fraud Emergency Mode Card -->
+      <article class="card capability-card" id="capEmergency">
+        <div class="capability-header">
+          <div class="capability-title-group">
+            <div class="capability-icon emergency-accent-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polyline points="12 8 12 12 14 14"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="capability-title">Fraud Emergency Assistance</h3>
+              <p class="capability-subtitle">Guidance and immediate protocol for victims of financial fraud.</p>
+            </div>
+          </div>
+          <span class="status-pill status-available">AVAILABLE</span>
+        </div>
+
+        <div class="capability-body">
+          <p class="capability-text">If you have sent money, shared an OTP, or clicked a malicious link, every minute counts. Access the official response checklist.</p>
+          <button id="openEmergencyTabBtn" class="btn btn-emergency">Open Emergency Response Protocol</button>
+        </div>
+      </article>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: FRAUD EMERGENCY MODE (DEDICATED PROTOCOL)        -->
+    <!-- ======================================================== -->
+    <div id="tabEmergency" class="tab-pane">
+      
+      <section class="section-intro">
+        <div class="emergency-badge-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span>CRITICAL ACTION REQUIRED</span>
+        </div>
+        <h2 class="section-title">Fraud Emergency Guidance</h2>
+        <p class="section-desc">If you have shared financial credentials or transferred money to an unauthorized recipient, execute these steps immediately.</p>
+      </section>
+
+      <!-- Immediate Helpline Card -->
+      <div class="card emergency-callout-card">
+        <div class="helpline-header">
+          <span class="helpline-tag">NATIONAL CYBERCRIME HELPLINE</span>
+          <span class="helpline-number">1930</span>
+        </div>
+        <p class="helpline-desc">Report financial cyber fraud immediately to trigger the Indian Cyber Crime Coordination Centre (I4C) banking freeze protocol.</p>
+        <div class="helpline-actions">
+          <button id="copyHelplineBtn" class="btn btn-emergency btn-sm">Copy Helpline (1930)</button>
+          <span id="copyHelplineFeedback" class="copy-feedback"></span>
+        </div>
+      </div>
+
+      <!-- Action Protocol Checklist -->
+      <div class="card emergency-checklist-card">
+        <h4 class="checklist-title">Immediate Response Checklist</h4>
+        
+        <div class="checklist-item">
+          <div class="checklist-num">1</div>
+          <div class="checklist-content">
+            <strong>Contact Your Bank / UPI Provider</strong>
+            <p>Call your bank's official toll-free customer care immediately to block debit cards, freeze net-banking, and revoke UPI registration.</p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="checklist-num">2</div>
+          <div class="checklist-content">
+            <strong>File on National Cybercrime Portal</strong>
+            <p>Submit transaction IDs, timestamps, and scammer details on official portal: <code>cybercrime.gov.in</code>.</p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="checklist-num">3</div>
+          <div class="checklist-content">
+            <strong>Report Suspected Communication on Chakshu</strong>
+            <p>Report the fraudulent mobile number, WhatsApp handle, or SMS sender on the Department of Telecommunications (DoT) Chakshu facility: <code>sancharsaathi.gov.in</code>.</p>
+          </div>
+        </div>
+
+        <div class="checklist-item">
+          <div class="checklist-num">4</div>
+          <div class="checklist-content">
+            <strong>Secure Your Mobile Device &amp; SIM</strong>
+            <p>If you downloaded any remote-support app (AnyDesk, TeamViewer) or APK, turn off Wi-Fi/Mobile Data immediately and uninstall the app.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Crucial Warnings -->
+      <div class="card warning-advisory-card">
+        <div class="advisory-title-row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <strong>Critical Rules for Victims</strong>
+        </div>
+        <ul class="advisory-list">
+          <li><strong>Never share OTPs or PINs</strong> with anyone claiming to help or "reverse" transactions.</li>
+          <li><strong>Beware of fake recovery agents</strong> on social media or search engines claiming they can hack or recover lost funds for an upfront fee.</li>
+          <li>ScamShield AI provides defensive intelligence only and cannot directly reverse bank transactions or recover funds.</li>
+        </ul>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
