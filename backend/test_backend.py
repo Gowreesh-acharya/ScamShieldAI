@@ -1,0 +1,629 @@
+import asyncio
+import unittest
+
+import httpx
+from fastapi.testclient import TestClient
+from detector import analyze
+from main import app
+
+client = TestClient(app)
+
+
+class TestBackend(unittest.TestCase):
+    def test_examples(self):
+        for message, expected in [
+            ("Your refund is ready. Reply with your OTP.", "HIGH_RISK"),
+            ("Your refund has been processed. Never share your OTP.", "SAFE"),
+            ("Never share your OTP. Now send us your OTP.", "HIGH_RISK"),
+            ("SBI: Reply with your OTP. https://sbi.co.in", "HIGH_RISK"),
+            ("Refund ke liye UPI PIN daalo", "HIGH_RISK"),
+            ("Demo Bank: verify at https://example.com.other.example.org", "SUSPICIOUS"),
+            ("Demo Bank: visit https://app.example.com", "SAFE"),
+            ("bit.ly/demo", "SUSPICIOUS"),
+            ("https://[bad", "SUSPICIOUS"),
+        ]:
+            with self.subTest(message=message):
+                response = client.post("/api/analyze", json={"content": message})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["verdict"], expected)
+
+    def test_maximum_allowed_content(self):
+        message = "A" * 5000
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        self.assertEqual(data["verdict"], "SAFE")
+        self.assertEqual(data["score"], 0)
+        self.assertEqual(data["signals"], [])
+
+    def test_just_over_maximum_content(self):
+        message = "A" * 5001
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+        errors = response.json()["detail"]
+        self.assertEqual(errors[0]["type"], "string_too_long")
+        self.assertEqual(
+            errors[0]["loc"],
+            ["body", "content"]
+        )
+
+    def test_numeric_content_rejected(self):
+        response = client.post(
+            "/api/analyze",
+            json={"content": 12345}
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+        errors = response.json()["detail"]
+
+        self.assertEqual(
+            errors[0]["type"],
+            "string_type"
+        )
+
+        self.assertEqual(
+            errors[0]["loc"],
+            ["body", "content"]
+        )
+
+    def test_whitespace_content_rejected(self):
+        response = client.post(
+            "/api/analyze",
+            json={"content": "   "}
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+        errors = response.json()["detail"]
+
+        self.assertEqual(
+            errors[0]["type"],
+            "value_error"
+        )
+
+        self.assertEqual(
+            errors[0]["loc"],
+            ["body", "content"]
+        )
+
+
+
+    def test_oversized_content_rejected(self):
+        message = "A" * 10000
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+
+    def test_inputs(self):
+        for content in ["", "  ", "x"*12001]:
+            self.assertEqual(client.post("/api/analyze", json={"content": content}).status_code, 422)
+        result = client.post("/api/analyze", json={"content":"https://example.com https://example.org"}).json()
+        self.assertTrue(result["link_only"])
+        self.assertEqual(len(result["extracted_urls"]), 2)
+
+    def test_kannada_account_threat(self):
+        message = "ನಿಮ್ಮ ಬ್ಯಾಂಕ್ ಖಾತೆ ಬ್ಲಾಕ್ ಆಗುತ್ತದೆ. ತಕ್ಷಣ ಪರಿಶೀಲಿಸಿ."
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["verdict"], "SUSPICIOUS")
+        self.assertIn(
+            "Pressure or threat",
+            [s["label"] for s in response.json()["signals"]]
+        )
+
+    def test_hinglish_account_threat(self):
+        message = (
+            "Aapka bank account aaj block ho jayega. "
+            "Turant verification karo."
+        )
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["verdict"],
+            "SUSPICIOUS"
+        )
+        self.assertIn(
+            "Pressure or threat",
+            [
+                signal["label"]
+                for signal in response.json()["signals"]
+            ]
+        )
+
+    def test_hinglish_safety_warning(self):
+        message = (
+            "Agar koi bole bank account aaj block ho jayega, "
+            "toh unki baat par bharosa mat karo."
+        )
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["verdict"], "SAFE")
+        self.assertEqual(response.json()["score"], 0)
+
+
+
+    def test_link_only_brand_impersonation(self):
+        suspicious_url = "https://sbi-kyc-verify.example.com/login"
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": suspicious_url}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        self.assertTrue(data["link_only"])
+        self.assertIn(suspicious_url, data["extracted_urls"])
+        self.assertEqual(data["verdict"], "SUSPICIOUS")
+        self.assertIn(
+            "Brand and domain differ",
+            [signal["label"] for signal in data["signals"]]
+        )
+
+        # A listed SBI domain should not trigger
+        # a brand/domain mismatch.
+        trusted = client.post(
+            "/api/analyze",
+            json={"content": "https://secure.onlinesbi.sbi/login"}
+        )
+
+        self.assertEqual(trusted.status_code, 200)
+        self.assertNotIn(
+            "Brand and domain differ",
+            [
+                signal["label"]
+                for signal in trusted.json()["signals"]
+            ]
+        )
+
+    def test_misleading_url_userinfo(self):
+        url = (
+            "https://onlinesbi.sbi@"
+            "verify-account.example.com/login"
+        )
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": url}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertTrue(data["link_only"])
+        self.assertIn(url, data["extracted_urls"])
+
+        self.assertEqual(
+            data["verdict"],
+            "SUSPICIOUS"
+        )
+
+        self.assertIn(
+            "Misleading URL userinfo",
+            [signal["label"] for signal in data["signals"]]
+        )
+
+    def test_missing_content_rejected(self):
+        response = client.post(
+            "/api/analyze",
+            json={}
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+        errors = response.json()["detail"]
+
+        self.assertEqual(
+            errors[0]["type"],
+            "missing"
+        )
+
+        self.assertEqual(
+            errors[0]["loc"],
+            ["body", "content"]
+        )
+
+    def test_null_content_rejected(self):
+        response = client.post(
+            "/api/analyze",
+            json={"content": None}
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+        errors = response.json()["detail"]
+
+        self.assertEqual(
+            errors[0]["type"],
+            "string_type"
+        )
+
+        self.assertEqual(
+            errors[0]["loc"],
+            ["body", "content"]
+        )
+
+    def test_empty_content_rejected(self):
+        response = client.post(
+            "/api/analyze",
+            json={"content": ""}
+        )
+
+        self.assertEqual(response.status_code, 422)
+
+        errors = response.json()["detail"]
+        self.assertEqual(errors[0]["type"], "string_too_short")
+
+    def test_combined_risk_score_cap(self):
+        message = (
+            "Your bank account will be blocked today. "
+            "Reply with your OTP and visit "
+            "https://bit.ly/scamshield-demo-test"
+        )
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        self.assertEqual(data["verdict"], "HIGH_RISK")
+        self.assertEqual(data["score"], 100)
+
+        signals = {
+            signal["label"]: signal["weight"]
+            for signal in data["signals"]
+        }
+
+        self.assertEqual(signals["Request for a secret"], 75)
+        self.assertEqual(signals["Pressure or threat"], 20)
+        self.assertEqual(signals["Hidden destination"], 25)
+
+        self.assertEqual(sum(signals.values()), 120)
+        self.assertFalse(data["link_only"])
+
+
+    def test_multiple_urls(self):
+        safe_url = "https://example.com"
+        suspicious_url = "https://sbi-kyc-verify.example.com/login"
+
+        message = (
+            f"Visit {safe_url} first. "
+            f"Then complete verification at {suspicious_url}"
+        )
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertFalse(data["link_only"])
+
+        self.assertEqual(
+            data["extracted_urls"],
+            [safe_url, suspicious_url]
+        )
+
+        self.assertEqual(data["verdict"], "SUSPICIOUS")
+        self.assertEqual(data["score"], 35)
+
+        self.assertIn(
+            suspicious_url,
+            data["highlighted_phrases"]
+        )
+
+    def test_duplicate_urls(self):
+        url = "https://sbi-kyc-verify.example.com/login"
+
+        message = f"Check {url} and again {url}"
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        # The repeated URL should appear only once.
+        self.assertEqual(data["extracted_urls"], [url])
+        self.assertEqual(data["highlighted_phrases"], [url])
+
+        # Repetition should not increase the score.
+        self.assertEqual(data["verdict"], "SUSPICIOUS")
+        self.assertEqual(data["score"], 35)
+
+        self.assertEqual(
+            [signal["label"] for signal in data["signals"]],
+            ["Brand and domain differ"]
+        )
+
+    def test_at_symbol_in_url_path(self):
+        url = "https://example.com/contact/@support"
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": url}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertTrue(data["link_only"])
+        self.assertEqual(data["extracted_urls"], [url])
+        self.assertEqual(data["verdict"], "SAFE")
+        self.assertEqual(data["score"], 0)
+
+        self.assertNotIn(
+            "Misleading URL userinfo",
+            [signal["label"] for signal in data["signals"]]
+        )
+
+    def test_misleading_sbi_subdomain(self):
+        url = "https://onlinesbi.sbi.example.com/login"
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": url}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertTrue(data["link_only"])
+        self.assertEqual(data["extracted_urls"], [url])
+
+        self.assertEqual(data["verdict"], "SUSPICIOUS")
+        self.assertEqual(data["score"], 35)
+
+        self.assertIn(
+            "Brand and domain differ",
+            [signal["label"] for signal in data["signals"]]
+        )
+
+        self.assertIn(url, data["highlighted_phrases"])
+
+    def test_shortened_url_inside_message(self):
+        url = "https://bit.ly/scamshield-demo-test"
+
+        message = (
+            "Please check this link for more information: "
+            + url
+        )
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertFalse(data["link_only"])
+        self.assertEqual(data["extracted_urls"], [url])
+        self.assertEqual(data["unrolled_urls"], [])
+
+        self.assertEqual(data["verdict"], "SUSPICIOUS")
+        self.assertEqual(data["score"], 25)
+
+        self.assertIn(
+            "Hidden destination",
+            [signal["label"] for signal in data["signals"]]
+        )
+
+        self.assertIn(url, data["highlighted_phrases"])
+
+    def test_otp_and_short_url_evidence(self):
+        url = "https://bit.ly/scamshield-demo-test"
+        message = f"Reply with your OTP and visit {url}"
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": message}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        self.assertEqual(data["verdict"], "HIGH_RISK")
+        self.assertEqual(data["score"], 100)
+        self.assertFalse(data["link_only"])
+
+        self.assertEqual(data["extracted_urls"], [url])
+
+        self.assertIn(
+            "Reply with your OTP",
+            data["highlighted_phrases"]
+        )
+        self.assertIn(
+            url,
+            data["highlighted_phrases"]
+        )
+
+        self.assertEqual(
+            {signal["label"] for signal in data["signals"]},
+            {"Request for a secret", "Hidden destination"}
+        )
+
+    def test_shortened_link_only(self):
+        url = "https://bit.ly/scamshield-demo-test"
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": url}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        self.assertTrue(data["link_only"])
+        self.assertEqual(data["notice"], "Only the link was checked.")
+        self.assertEqual(data["extracted_urls"], [url])
+        self.assertEqual(data["unrolled_urls"], [])
+
+        self.assertEqual(data["verdict"], "SUSPICIOUS")
+        self.assertEqual(data["score"], 25)
+
+        self.assertIn(
+            "Hidden destination",
+            [signal["label"] for signal in data["signals"]]
+        )
+
+
+    def test_hdfc_link_only_impersonation(self):
+        suspicious_url = (
+            "https://hdfcbank-verify.example.com/login"
+        )
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": suspicious_url}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertTrue(data["link_only"])
+        self.assertEqual(
+            data["extracted_urls"],
+            [suspicious_url]
+        )
+
+        self.assertEqual(data["verdict"], "SUSPICIOUS")
+
+        self.assertIn(
+            "Brand and domain differ",
+            [signal["label"] for signal in data["signals"]]
+        )
+
+    def test_legitimate_hdfc_domain(self):
+        response = client.post(
+            "/api/analyze",
+            json={"content": "https://www.hdfcbank.com"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        labels = [s["label"] for s in data["signals"]]
+
+        self.assertNotIn("Brand and domain differ", labels)
+        self.assertEqual(data["score"], 0)
+        self.assertEqual(data["verdict"], "SAFE")
+
+    def test_deceptive_hdfc_subdomain(self):
+        response = client.post(
+            "/api/analyze",
+            json={
+                "content":
+                "https://www.hdfcbank.com.example.com/login"
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        labels = [s["label"] for s in data["signals"]]
+
+        self.assertIn("Brand and domain differ", labels)
+        self.assertEqual(data["verdict"], "SUSPICIOUS")
+        self.assertEqual(data["score"], 35)
+
+    def test_percent_encoded_hostname(self):
+        suspicious_url = (
+            "https://hdfcbank%2dverify.example.com/login"
+        )
+
+        response = client.post(
+            "/api/analyze",
+            json={"content": suspicious_url}
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+
+        self.assertTrue(data["link_only"])
+        self.assertEqual(
+            data["extracted_urls"],
+            [suspicious_url]
+        )
+
+        self.assertEqual(
+            data["verdict"],
+            "SUSPICIOUS"
+        )
+
+        labels = [
+            signal["label"]
+            for signal in data["signals"]
+        ]
+
+        self.assertIn(
+            "Encoded hostname",
+            labels
+        )
+
+
+
+
+
+    def test_redirects(self):
+        async def run():
+            def answer(request):
+                self.assertEqual(request.url.host, "bit.ly")
+                if request.url.path == "/down":
+                    raise httpx.ReadTimeout("timeout")
+                return httpx.Response(302, headers={"Location":"https://other.example.org"})
+            async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as http:
+                result = await analyze("Demo Bank bit.ly/demo", http)
+                self.assertEqual(result["unrolled_urls"], ["https://other.example.org"])
+                self.assertIn("Brand and domain differ", [s["label"] for s in result["signals"]])
+                result = await analyze("bit.ly/down", http)
+                self.assertEqual(result["unrolled_urls"], [])
+                self.assertEqual(result["verdict"], "SUSPICIOUS")
+        asyncio.run(run())
