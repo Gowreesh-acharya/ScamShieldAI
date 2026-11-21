@@ -2,7 +2,7 @@
  * ScamShield AI - API Communication Service
  * Handles HTTP requests to Miraj's FastAPI backend strictly following the confirmed API contract:
  * 
- * Endpoint: POST http://127.0.0.1:8000/api/analyze
+ * Endpoint: POST https://madonna-mouth-mandate-cole.trycloudflare.com/api/analyze
  * Request JSON: { "content": "..." } (NO extra fields)
  * 
  * Response fields:
@@ -242,7 +242,7 @@ export function generateMockDetection(content, inputType) {
 
     return {
       is_simulated_mock: true,
-      mock_notice: "⚠️ DEMO SIMULATION: Real FastAPI backend is offline at http://127.0.0.1:8000. These results are for UI demonstration only.",
+      mock_notice: "⚠️ DEMO SIMULATION: Real FastAPI backend is offline at https://madonna-mouth-mandate-cole.trycloudflare.com. These results are for UI demonstration only.",
       content: content,
       score: 92,
       risk_score: 92,
@@ -279,7 +279,7 @@ export function generateMockDetection(content, inputType) {
   // Safe mock simulation
   return {
     is_simulated_mock: true,
-    mock_notice: "⚠️ DEMO SIMULATION: Real FastAPI backend is offline at http://127.0.0.1:8000. These results are for UI demonstration only.",
+    mock_notice: "⚠️ DEMO SIMULATION: Real FastAPI backend is offline at https://madonna-mouth-mandate-cole.trycloudflare.com. These results are for UI demonstration only.",
     content: content,
     score: 8,
     risk_score: 8,

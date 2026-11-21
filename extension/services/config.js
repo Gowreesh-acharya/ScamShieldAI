@@ -5,9 +5,9 @@
  */
 
 export const DEFAULT_CONFIG = {
-  backendUrl: "http://127.0.0.1:8000",
+  backendUrl: "https://madonna-mouth-mandate-cole.trycloudflare.com",
   apiEndpoint: "/api/analyze",
-  requestTimeoutMs: 10000,
+  requestTimeoutMs: 15000,
   enableMockFallback: true // Allows simulated demo results when backend is offline
 };
 
